@@ -1,0 +1,372 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ── Autenticazione ──────────────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  passwordHash  String
+  emailVerified Boolean   @default(false)
+
+  restaurants   UserRestaurant[]
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model UserRestaurant {
+  id            String    @id @default(cuid())
+  userId        String
+  restaurantId  String
+  role          UserRole  @default(OWNER)
+
+  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  restaurant    Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  createdAt     DateTime   @default(now())
+
+  @@unique([userId, restaurantId])
+  @@index([restaurantId])
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  OWNER
+  MANAGER
+}
+
+// ── Ristorante ──────────────────────────────────────────────
+
+model Restaurant {
+  id          String     @id @default(cuid())
+  name        String
+  slug        String     @unique
+  tagline     String?
+  description String?
+  logoUrl     String?
+  coverUrl    String?
+
+  // Indirizzo
+  address     String?
+  city        String?
+  province    String?
+  country     String     @default("IT")
+
+  // Contatti
+  phone       String?
+  email       String?
+  website     String?
+
+  // ── TEMA PERSONALIZZATO (3 livelli) ──
+  themeCover    Json     @default("{}")
+  themeMenu     Json     @default("{}")
+  themeDish     Json     @default("{}")
+  themePreset   String?
+
+  // Tema bozza (modifiche non ancora pubblicate)
+  themeCoverDraft  Json?
+  themeMenuDraft   Json?
+  themeDishDraft   Json?
+
+  // Info servizio
+  coverCharge    Decimal?  @db.Decimal(4,2)
+  serviceNote    String?
+  allergenNote   String?
+
+  // Stato
+  isActive    Boolean    @default(true)
+  isPublished Boolean    @default(false)
+  isSuspended Boolean    @default(false)
+  suspendedAt DateTime?
+  suspendedReason String?
+
+  // Piano e fatturazione
+  planId      String?
+  plan        Plan?      @relation(fields: [planId], references: [id])
+
+  // Stripe
+  stripeCustomerId      String?  @unique
+  stripeSubscriptionId  String?  @unique
+  stripeSubscriptionStatus String?
+  subscriptionCurrentPeriodEnd DateTime?
+
+  // Relazioni
+  users         UserRestaurant[]
+  categories    Category[]
+  invitations   Invitation[]
+  previewTokens PreviewToken[]
+  auditLogs     AuditLog[]
+
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([slug])
+}
+
+// ── Piani e Subscription ────────────────────────────────────
+
+model Plan {
+  id              String    @id @default(cuid())
+  name            String
+  slug            String    @unique
+  maxDishes       Int       @default(20)
+  maxCategories   Int       @default(5)
+  maxImages       Int       @default(10)
+  customTheme     Boolean   @default(false)
+  googleFonts     Boolean   @default(false)
+  removeBranding  Boolean   @default(false)
+  analytics       Boolean   @default(false)
+  priceMonthly    Decimal   @db.Decimal(6,2)
+  priceYearly     Decimal?  @db.Decimal(6,2)
+  isActive        Boolean   @default(true)
+
+  restaurants     Restaurant[]
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+// ── Temi Preset ─────────────────────────────────────────────
+
+model ThemePreset {
+  id            String   @id @default(cuid())
+  slug          String   @unique
+  name          String
+  description   String?
+  thumbnailUrl  String?
+  category      String   @default("all")
+  sortOrder     Int      @default(0)
+  isActive      Boolean  @default(true)
+
+  coverConfig   Json
+  menuConfig    Json
+  dishConfig    Json
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// ── Inviti ───────────────────────────────────────────────────
+
+model Invitation {
+  id            String    @id @default(cuid())
+  email         String
+  role          UserRole  @default(MANAGER)
+  token         String    @unique @default(cuid())
+  expiresAt     DateTime
+  acceptedAt    DateTime?
+
+  restaurantId  String
+  restaurant    Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  createdAt     DateTime   @default(now())
+
+  @@index([token])
+  @@index([email])
+}
+
+// ── Token Preview Mobile ────────────────────────────────────
+
+model PreviewToken {
+  id            String    @id @default(cuid())
+  token         String    @unique @default(cuid())
+  expiresAt     DateTime
+
+  restaurantId  String
+  restaurant    Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  createdByUserId String
+
+  createdAt     DateTime   @default(now())
+
+  @@index([token])
+  @@index([restaurantId])
+  @@index([expiresAt])
+}
+
+// ── Audit Log ───────────────────────────────────────────────
+
+model AuditLog {
+  id            String    @id @default(cuid())
+
+  actorUserId   String
+  actorEmail    String
+  actorRole     UserRole
+
+  action        AuditAction
+  entityType    String
+  entityId      String?
+
+  restaurantId  String?
+  restaurant    Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: SetNull)
+
+  metadata      Json      @default("{}")
+  ipAddress     String?
+  userAgent     String?
+
+  createdAt     DateTime  @default(now())
+
+  @@index([actorUserId])
+  @@index([restaurantId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+enum AuditAction {
+  TENANT_SUSPENDED
+  TENANT_REACTIVATED
+  TENANT_DELETED
+  TENANT_PLAN_CHANGED
+  TENANT_IMPERSONATED
+  PLAN_CREATED
+  PLAN_UPDATED
+  PLAN_DEACTIVATED
+  PRESET_CREATED
+  PRESET_UPDATED
+  PRESET_DELETED
+  RESTAURANT_CREATED
+  RESTAURANT_UPDATED
+  RESTAURANT_DELETED
+  THEME_PUBLISHED
+  USER_INVITED
+  USER_REMOVED
+  USER_ROLE_CHANGED
+  LOGIN_SUCCESS
+  LOGIN_FAILED
+  PASSWORD_CHANGED
+}
+
+// ── Impersonazione Super Admin ──────────────────────────────
+
+model SuperAdminImpersonation {
+  id                String    @id @default(cuid())
+  superAdminUserId  String
+  targetUserId      String
+  targetRestaurantId String
+  startedAt         DateTime  @default(now())
+  endedAt           DateTime?
+  reason            String
+
+  @@index([superAdminUserId])
+  @@index([targetUserId])
+  @@index([endedAt])
+}
+
+// ── Categorie ───────────────────────────────────────────────
+
+model Category {
+  id           String     @id @default(cuid())
+  name         String
+  slug         String
+  description  String?
+  icon         String?
+  sortOrder    Int        @default(0)
+  isVisible    Boolean    @default(true)
+
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  dishes       Dish[]
+
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@unique([restaurantId, slug])
+  @@index([restaurantId, sortOrder])
+}
+
+// ── Piatti ───────────────────────────────────────────────────
+
+model Dish {
+  id           String     @id @default(cuid())
+  name         String
+  description  String?
+  imageUrl     String?
+
+  price        Decimal?   @db.Decimal(6,2)
+  priceLabel   String?
+  variants     PriceVariant[]
+
+  tags         DishTag[]  @default([])
+  allergens    Allergen[] @default([])
+  isChefChoice Boolean    @default(false)
+
+  sortOrder    Int        @default(0)
+  isAvailable  Boolean    @default(true)
+  isVisible    Boolean    @default(true)
+
+  categoryId   String
+  category     Category   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  translations DishTranslation[]
+
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([categoryId, sortOrder])
+}
+
+// ── Varianti Prezzo ─────────────────────────────────────────
+
+model PriceVariant {
+  id        String   @id @default(cuid())
+  label     String
+  price     Decimal  @db.Decimal(6,2)
+  sortOrder Int      @default(0)
+
+  dishId    String
+  dish      Dish     @relation(fields: [dishId], references: [id], onDelete: Cascade)
+
+  @@index([dishId, sortOrder])
+}
+
+// ── Predisposizione Multilingua (v2) ────────────────────────
+
+model DishTranslation {
+  id          String   @id @default(cuid())
+  dishId      String
+  dish        Dish     @relation(fields: [dishId], references: [id], onDelete: Cascade)
+  locale      String
+  name        String
+  description String?
+
+  @@unique([dishId, locale])
+}
+
+// ── Enums ───────────────────────────────────────────────────
+
+enum DishTag {
+  VEGETARIANO
+  VEGANO
+  SENZA_GLUTINE
+  PICCANTE
+  BIOLOGICO
+  KM_ZERO
+  SURGELATO
+}
+
+enum Allergen {
+  GLUTINE
+  CROSTACEI
+  UOVA
+  PESCE
+  ARACHIDI
+  SOIA
+  LATTE
+  FRUTTA_A_GUSCIO
+  SEDANO
+  SENAPE
+  SESAMO
+  ANIDRIDE_SOLFOROSA
+  LUPINI
+  MOLLUSCHI
+}
