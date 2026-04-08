@@ -1,8 +1,22 @@
-export default function QrPlaceholder() {
+import { requireOwnership } from '@/lib/auth-helpers';
+import { generateQRPng } from '@/lib/qr/generate';
+import QRManager from '@/components/admin/QRManager';
+
+type Props = { params: Promise<{ id: string }> };
+
+export default async function QRPage({ params }: Props) {
+  const { id } = await params;
+  const restaurant = await requireOwnership(id);
+
+  const publicUrl = `${process.env.NEXT_PUBLIC_APP_URL}/${restaurant.slug}`;
+  const previewDataUrl = await generateQRPng(publicUrl, { size: 512 });
+
   return (
-    <div className="text-center py-16 text-[#a8a29e]">
-      <p className="text-2xl mb-2">🚧</p>
-      <p className="text-sm">In arrivo nello Step 7</p>
-    </div>
+    <QRManager
+      slug={restaurant.slug}
+      publicUrl={publicUrl}
+      previewDataUrl={previewDataUrl}
+      restaurantName={restaurant.name}
+    />
   );
 }

@@ -117,7 +117,12 @@ export default function InfoForm({ restaurantId, defaultValues }: InfoFormProps)
                 />
               )}
 
-              {field.hint && !hasError && (
+              {field.name === 'slug' && (
+                <p className="mt-1.5 px-2.5 py-1.5 text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded">
+                  Usato nell&apos;URL pubblico: /{'{slug}'}. Cambiarlo invalida i QR già stampati.
+                </p>
+              )}
+              {field.hint && field.name !== 'slug' && !hasError && (
                 <p className="mt-1 text-[11px] text-[#a8a29e]">{field.hint}</p>
               )}
 
