@@ -1,6 +1,9 @@
 import Link from 'next/link';
+import type { Metadata } from 'next';
 import { getCurrentUser } from '@/lib/auth-helpers';
 import { prisma } from '@/lib/prisma';
+
+export const metadata: Metadata = { title: 'Dashboard' };
 
 export default async function DashboardPage() {
   const user = await getCurrentUser();

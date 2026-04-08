@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import type { Metadata } from 'next';
 import { requireOwnership } from '@/lib/auth-helpers';
 import RestaurantTabs from '@/components/admin/RestaurantTabs';
 
@@ -6,6 +7,12 @@ type Props = {
   params: Promise<{ id: string }>;
   children: React.ReactNode;
 };
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { id } = await params;
+  const restaurant = await requireOwnership(id);
+  return { title: restaurant.name };
+}
 
 export default async function RestaurantLayout({ params, children }: Props) {
   const { id } = await params;

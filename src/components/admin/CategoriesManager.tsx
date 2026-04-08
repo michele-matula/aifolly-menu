@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useActionState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { toastSuccess, toastError } from '@/lib/toast';
 import {
   DndContext,
   closestCenter,
@@ -42,25 +43,6 @@ interface CategoryItem {
 interface Props {
   restaurantId: string;
   initialCategories: CategoryItem[];
-}
-
-// ── Toast ───────────────────────────────────────────────────
-
-function Toast({ message, type, onDismiss }: { message: string; type: 'success' | 'error'; onDismiss: () => void }) {
-  useEffect(() => {
-    const t = setTimeout(onDismiss, 3000);
-    return () => clearTimeout(t);
-  }, [onDismiss]);
-
-  return (
-    <div className={`mb-4 px-4 py-3 rounded-md text-[13px] ${
-      type === 'success'
-        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-        : 'bg-red-50 text-red-700 border border-red-200'
-    }`}>
-      {message}
-    </div>
-  );
 }
 
 // ── Modal ───────────────────────────────────────────────────
@@ -269,7 +251,6 @@ export default function CategoriesManager({ restaurantId, initialCategories }: P
   const [modalMode, setModalMode] = useState<'create' | 'edit' | null>(null);
   const [editingCategory, setEditingCategory] = useState<CategoryItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<CategoryItem | null>(null);
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   // Sync with server data on re-render
   useEffect(() => { setCategories(initialCategories); }, [initialCategories]);
@@ -278,10 +259,6 @@ export default function CategoriesManager({ restaurantId, initialCategories }: P
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor),
   );
-
-  const showToast = useCallback((message: string, type: 'success' | 'error') => {
-    setToast({ message, type });
-  }, []);
 
   const handleDragEnd = useCallback(async (event: DragEndEvent) => {
     const { active, over } = event;
@@ -297,31 +274,31 @@ export default function CategoriesManager({ restaurantId, initialCategories }: P
     const result = await reorderCategories(restaurantId, reordered.map(c => c.id));
     if (!result.success) {
       setCategories(initialCategories); // Revert
-      showToast(result.error ?? 'Errore nel riordino.', 'error');
+      toastError(result.error ?? 'Errore nel riordino.');
     } else {
-      showToast('Ordine aggiornato.', 'success');
+      toastSuccess('Ordine aggiornato.');
     }
-  }, [categories, initialCategories, restaurantId, showToast]);
+  }, [categories, initialCategories, restaurantId]);
 
   const handleFormSuccess = useCallback((message: string) => {
     setModalMode(null);
     setEditingCategory(null);
-    showToast(message, 'success');
+    toastSuccess(message);
     router.refresh();
-  }, [router, showToast]);
+  }, [router]);
 
   const handleDelete = useCallback(async () => {
     if (!deleteTarget) return;
     const result = await deleteCategory(restaurantId, deleteTarget.id);
     if (result.success) {
       setDeleteTarget(null);
-      showToast('Categoria eliminata.', 'success');
+      toastSuccess('Categoria eliminata.');
       router.refresh();
     } else {
       setDeleteTarget(null);
-      showToast(result.error ?? 'Errore nell\'eliminazione.', 'error');
+      toastError(result.error ?? 'Errore nell\'eliminazione.');
     }
-  }, [deleteTarget, restaurantId, router, showToast]);
+  }, [deleteTarget, restaurantId, router]);
 
   return (
     <div>
@@ -342,9 +319,6 @@ export default function CategoriesManager({ restaurantId, initialCategories }: P
           + Nuova categoria
         </button>
       </div>
-
-      {/* Toast */}
-      {toast && <Toast message={toast.message} type={toast.type} onDismiss={() => setToast(null)} />}
 
       {/* Empty state */}
       {categories.length === 0 && (

@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useState } from 'react';
 import { updateRestaurantInfo, type InfoActionState } from './actions';
 import ImageUploader from '@/components/admin/ImageUploader';
+import { toastSuccess } from '@/lib/toast';
 
 interface InfoFormProps {
   restaurantId: string;
@@ -49,15 +50,12 @@ export default function InfoForm({ restaurantId, defaultValues }: InfoFormProps)
     { success: false },
   );
 
-  const [showSuccess, setShowSuccess] = useState(false);
   const [logoUrl, setLogoUrl] = useState<string | null>(defaultValues.logoUrl || null);
   const [coverUrl, setCoverUrl] = useState<string | null>(defaultValues.coverUrl || null);
 
   useEffect(() => {
     if (state.success) {
-      setShowSuccess(true);
-      const timer = setTimeout(() => setShowSuccess(false), 3000);
-      return () => clearTimeout(timer);
+      toastSuccess('Modifiche salvate.');
     }
   }, [state]);
 
@@ -72,13 +70,6 @@ export default function InfoForm({ restaurantId, defaultValues }: InfoFormProps)
       {state.error && !state.success && (
         <div className="mb-6 px-4 py-3 text-[13px] text-red-700 bg-red-50 border border-red-200 rounded-md">
           {state.error}
-        </div>
-      )}
-
-      {/* Success */}
-      {showSuccess && (
-        <div className="mb-6 px-4 py-3 text-[13px] text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-md">
-          Modifiche salvate.
         </div>
       )}
 

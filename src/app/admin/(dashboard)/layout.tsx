@@ -1,6 +1,7 @@
 import { getCurrentUser } from '@/lib/auth-helpers';
 import { signOut } from '@/lib/auth';
 import Sidebar from '@/components/admin/Sidebar';
+import { Toaster } from 'sonner';
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
@@ -15,6 +16,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
           {children}
         </div>
       </main>
+
+      <Toaster position="top-right" richColors closeButton duration={4000} />
     </div>
   );
 }

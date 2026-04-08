@@ -21,7 +21,7 @@ export default function RestaurantTabs({ restaurantId }: RestaurantTabsProps) {
   const basePath = `/admin/restaurants/${restaurantId}`;
 
   return (
-    <nav className="flex gap-0 border-b border-[#e7e5e4] overflow-x-auto">
+    <nav className="flex gap-0 border-b border-[#e7e5e4] overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
       {TABS.map(tab => {
         const href = basePath + tab.segment;
         const isActive = tab.segment === ''

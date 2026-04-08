@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react';
 import { publishTheme, discardDraft } from '@/app/admin/(dashboard)/restaurants/[id]/theme/actions';
 import type { CoverTheme, MenuTheme, DishTheme } from '@/lib/validators/theme';
+import { toastSuccess, toastError } from '@/lib/toast';
 import ConfirmModal from './ConfirmModal';
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
@@ -24,7 +25,6 @@ export default function ThemeActionsHeader({
 }: Props) {
   const [confirmAction, setConfirmAction] = useState<'publish' | 'discard' | null>(null);
   const [isPending, setIsPending] = useState(false);
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   const handlePublish = useCallback(async () => {
     setIsPending(true);
@@ -32,12 +32,10 @@ export default function ThemeActionsHeader({
     setIsPending(false);
     setConfirmAction(null);
     if (result.success) {
-      setToast({ message: 'Tema pubblicato con successo', type: 'success' });
-      setTimeout(() => setToast(null), 3000);
+      toastSuccess('Tema pubblicato con successo.');
       onPublished();
     } else {
-      setToast({ message: result.error || 'Errore', type: 'error' });
-      setTimeout(() => setToast(null), 3000);
+      toastError(result.error || 'Errore durante la pubblicazione.');
     }
   }, [restaurantId, onPublished]);
 
@@ -47,10 +45,10 @@ export default function ThemeActionsHeader({
     setIsPending(false);
     setConfirmAction(null);
     if (result.success && result.data) {
+      toastSuccess('Modifiche annullate.');
       onDiscarded(result.data);
     } else {
-      setToast({ message: result.error || 'Errore', type: 'error' });
-      setTimeout(() => setToast(null), 3000);
+      toastError(result.error || 'Errore durante l\'annullamento.');
     }
   }, [restaurantId, onDiscarded]);
 
@@ -99,19 +97,6 @@ export default function ThemeActionsHeader({
           </button>
         </div>
       </div>
-
-      {/* Toast */}
-      {toast && (
-        <div
-          className={`mt-3 px-4 py-3 rounded-md text-[13px] ${
-            toast.type === 'success'
-              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-              : 'bg-red-50 text-red-700 border border-red-200'
-          }`}
-        >
-          {toast.message}
-        </div>
-      )}
 
       {confirmAction === 'publish' && (
         <ConfirmModal

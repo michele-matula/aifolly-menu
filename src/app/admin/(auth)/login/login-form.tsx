@@ -62,6 +62,7 @@ export default function LoginForm() {
           id="email"
           type="email"
           required
+          autoFocus
           value={email}
           onChange={e => setEmail(e.target.value)}
           style={inputStyle}

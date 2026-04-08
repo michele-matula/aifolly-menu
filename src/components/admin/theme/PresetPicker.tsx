@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react';
 import type { CoverTheme, MenuTheme, DishTheme } from '@/lib/validators/theme';
 import { applyPreset } from '@/app/admin/(dashboard)/restaurants/[id]/theme/actions';
+import { toastSuccess, toastError } from '@/lib/toast';
 import ConfirmModal from './ConfirmModal';
 
 export type PresetData = {
@@ -32,7 +33,10 @@ export default function PresetPicker({ restaurantId, presets, onPresetApplied }:
     const result = await applyPreset(restaurantId, confirmPreset.id);
     setIsPending(false);
     if (result.success && result.data) {
+      toastSuccess(`Preset "${confirmPreset.name}" applicato.`);
       onPresetApplied(result.data);
+    } else {
+      toastError(result.error || 'Errore nell\'applicazione del preset.');
     }
     setConfirmPreset(null);
   }, [confirmPreset, restaurantId, onPresetApplied]);

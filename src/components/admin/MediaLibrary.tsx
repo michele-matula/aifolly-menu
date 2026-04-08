@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { toastSuccess, toastError } from '@/lib/toast';
 
 interface MediaItem {
   id: string;
@@ -46,31 +47,25 @@ export default function MediaLibrary({ restaurantId, initialAssets, totalSize }:
   const [assets, setAssets] = useState(initialAssets);
   const [filter, setFilter] = useState<string>('ALL');
   const [deleteTarget, setDeleteTarget] = useState<MediaItem | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
 
   const filtered = filter === 'ALL' ? assets : assets.filter(a => a.kind === filter);
-
-  const showToast = useCallback((msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 3000);
-  }, []);
 
   const handleDelete = useCallback(async () => {
     if (!deleteTarget) return;
     const res = await fetch(`/api/admin/media/${deleteTarget.id}`, { method: 'DELETE' });
     if (res.ok) {
       setAssets(prev => prev.filter(a => a.id !== deleteTarget.id));
-      showToast('Immagine eliminata.');
+      toastSuccess('Immagine eliminata.');
     } else {
-      showToast('Errore nell\'eliminazione.');
+      toastError('Errore nell\'eliminazione.');
     }
     setDeleteTarget(null);
-  }, [deleteTarget, showToast]);
+  }, [deleteTarget]);
 
   const copyUrl = useCallback((url: string) => {
     navigator.clipboard.writeText(url);
-    showToast('URL copiato.');
-  }, [showToast]);
+    toastSuccess('URL copiato.');
+  }, []);
 
   return (
     <div>
@@ -81,13 +76,6 @@ export default function MediaLibrary({ restaurantId, initialAssets, totalSize }:
           {assets.length} file · {formatSize(totalSize)} occupati
         </p>
       </div>
-
-      {/* Toast */}
-      {toast && (
-        <div className="mb-4 px-4 py-3 rounded-md text-[13px] bg-emerald-50 text-emerald-700 border border-emerald-200">
-          {toast}
-        </div>
-      )}
 
       {/* Filters */}
       <div className="flex gap-2 mb-6">

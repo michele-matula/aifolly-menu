@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { toastSuccess, toastError } from '@/lib/toast';
 import Link from 'next/link';
 import {
   DndContext,
@@ -161,7 +162,6 @@ export default function DishesList({ restaurantId, dishes: initialDishes, filter
   const router = useRouter();
   const [dishes, setDishes] = useState(initialDishes);
   const [deleteTarget, setDeleteTarget] = useState<DishItem | null>(null);
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   useEffect(() => { setDishes(initialDishes); }, [initialDishes]);
 
@@ -169,11 +169,6 @@ export default function DishesList({ restaurantId, dishes: initialDishes, filter
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor),
   );
-
-  const showToast = useCallback((message: string, type: 'success' | 'error') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 3000);
-  }, []);
 
   const handleDragEnd = useCallback(async (event: DragEndEvent) => {
     const { active, over } = event;
@@ -187,23 +182,23 @@ export default function DishesList({ restaurantId, dishes: initialDishes, filter
     const result = await reorderDishes(restaurantId, filterCategoryId, reordered.map(d => d.id));
     if (!result.success) {
       setDishes(initialDishes);
-      showToast(result.error ?? 'Errore nel riordino.', 'error');
+      toastError(result.error ?? 'Errore nel riordino.');
     } else {
-      showToast('Ordine aggiornato.', 'success');
+      toastSuccess('Ordine aggiornato.');
     }
-  }, [dishes, initialDishes, restaurantId, filterCategoryId, showToast]);
+  }, [dishes, initialDishes, restaurantId, filterCategoryId]);
 
   const handleDelete = useCallback(async () => {
     if (!deleteTarget) return;
     const result = await deleteDish(restaurantId, deleteTarget.id);
     if (result.success) {
-      showToast('Piatto eliminato.', 'success');
+      toastSuccess('Piatto eliminato.');
       router.refresh();
     } else {
-      showToast(result.error ?? 'Errore.', 'error');
+      toastError(result.error ?? 'Errore.');
     }
     setDeleteTarget(null);
-  }, [deleteTarget, restaurantId, router, showToast]);
+  }, [deleteTarget, restaurantId, router]);
 
   const draggable = !!filterCategoryId;
 
@@ -222,17 +217,6 @@ export default function DishesList({ restaurantId, dishes: initialDishes, filter
 
   return (
     <div>
-      {/* Toast */}
-      {toast && (
-        <div className={`mb-4 px-4 py-3 rounded-md text-[13px] ${
-          toast.type === 'success'
-            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-            : 'bg-red-50 text-red-700 border border-red-200'
-        }`}>
-          {toast.message}
-        </div>
-      )}
-
       {dishes.length === 0 && (
         <div className="text-center py-16 border border-dashed border-[#e7e5e4] rounded-lg">
           <p className="text-[#78716c] text-sm">
