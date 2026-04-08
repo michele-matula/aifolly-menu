@@ -29,6 +29,8 @@ export async function updateRestaurantInfo(
     phone: formData.get('phone') as string,
     email: formData.get('email') as string,
     website: formData.get('website') as string,
+    logoUrl: formData.get('logoUrl') as string,
+    coverUrl: formData.get('coverUrl') as string,
   };
 
   const result = UpdateRestaurantInfoSchema.safeParse(raw);
@@ -71,6 +73,8 @@ export async function updateRestaurantInfo(
       phone: data.phone || null,
       email: data.email || null,
       website: data.website || null,
+      logoUrl: data.logoUrl || null,
+      coverUrl: data.coverUrl || null,
     },
   });
 

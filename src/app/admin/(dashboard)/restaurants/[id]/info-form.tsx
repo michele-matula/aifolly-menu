@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useState } from 'react';
 import { updateRestaurantInfo, type InfoActionState } from './actions';
+import ImageUploader from '@/components/admin/ImageUploader';
 
 interface InfoFormProps {
   restaurantId: string;
@@ -16,6 +17,8 @@ interface InfoFormProps {
     phone: string;
     email: string;
     website: string;
+    logoUrl: string;
+    coverUrl: string;
   };
 }
 
@@ -47,6 +50,8 @@ export default function InfoForm({ restaurantId, defaultValues }: InfoFormProps)
   );
 
   const [showSuccess, setShowSuccess] = useState(false);
+  const [logoUrl, setLogoUrl] = useState<string | null>(defaultValues.logoUrl || null);
+  const [coverUrl, setCoverUrl] = useState<string | null>(defaultValues.coverUrl || null);
 
   useEffect(() => {
     if (state.success) {
@@ -122,6 +127,31 @@ export default function InfoForm({ restaurantId, defaultValues }: InfoFormProps)
             </div>
           );
         })}
+      </div>
+
+      {/* Images */}
+      <div className="mt-8 space-y-6">
+        <h3 className="text-sm font-semibold text-[#44403c] uppercase tracking-wider">Immagini</h3>
+        <input type="hidden" name="logoUrl" value={logoUrl ?? ''} />
+        <input type="hidden" name="coverUrl" value={coverUrl ?? ''} />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <ImageUploader
+            restaurantId={restaurantId}
+            kind="LOGO"
+            value={logoUrl}
+            onChange={setLogoUrl}
+            aspectRatio="square"
+            label="Logo"
+          />
+          <ImageUploader
+            restaurantId={restaurantId}
+            kind="COVER"
+            value={coverUrl}
+            onChange={setCoverUrl}
+            aspectRatio="16/9"
+            label="Foto di copertina"
+          />
+        </div>
       </div>
 
       {/* Submit */}

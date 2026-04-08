@@ -29,6 +29,8 @@ export default async function RestaurantInfoPage({ params }: Props) {
           phone: restaurant.phone ?? '',
           email: restaurant.email ?? '',
           website: restaurant.website ?? '',
+          logoUrl: restaurant.logoUrl ?? '',
+          coverUrl: restaurant.coverUrl ?? '',
         }}
       />
     </div>

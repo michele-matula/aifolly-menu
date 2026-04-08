@@ -29,6 +29,8 @@ export const UpdateRestaurantInfoSchema = z.object({
   phone: z.string().max(30).trim().optional().or(z.literal('')),
   email: z.string().email('Email non valida').max(100).optional().or(z.literal('')),
   website: z.string().url('URL non valido').max(200).optional().or(z.literal('')),
+  logoUrl: z.string().max(500).optional().or(z.literal('')),
+  coverUrl: z.string().max(500).optional().or(z.literal('')),
 });
 
 export type UpdateRestaurantInfo = z.infer<typeof UpdateRestaurantInfoSchema>;

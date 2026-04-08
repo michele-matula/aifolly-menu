@@ -3,6 +3,7 @@
 import { useState, useEffect, useActionState } from 'react';
 import { useRouter } from 'next/navigation';
 import { DishTag, Allergen } from '@/generated/prisma/enums';
+import ImageUploader from '@/components/admin/ImageUploader';
 import {
   createDish,
   updateDish,
@@ -76,6 +77,9 @@ interface Props {
 export default function DishForm({ mode, restaurantId, categories, dish, defaultCategoryId }: Props) {
   const router = useRouter();
   const isEdit = mode === 'edit';
+
+  // Image state
+  const [imageUrl, setImageUrl] = useState<string | null>(dish?.imageUrl ?? null);
 
   // Tags & allergens state
   const [selectedTags, setSelectedTags] = useState<string[]>(dish?.tags ?? []);
@@ -191,9 +195,15 @@ export default function DishForm({ mode, restaurantId, categories, dish, default
           </div>
 
           <div>
-            <label htmlFor="imageUrl" className="block text-[13px] font-medium text-[#44403c] mb-1">URL immagine</label>
-            <input id="imageUrl" name="imageUrl" defaultValue={dish?.imageUrl ?? ''} className={inputClass} placeholder="https://..." />
-            <p className="mt-1 text-[11px] text-[#a8a29e]">Upload immagini in arrivo nello Step 5</p>
+            <input type="hidden" name="imageUrl" value={imageUrl ?? ''} />
+            <ImageUploader
+              restaurantId={restaurantId}
+              kind="DISH"
+              value={imageUrl}
+              onChange={setImageUrl}
+              aspectRatio="4/3"
+              label="Immagine piatto"
+            />
           </div>
         </div>
       </section>
