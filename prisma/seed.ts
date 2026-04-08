@@ -1,4 +1,5 @@
 import { PrismaClient, DishTag, Allergen } from '../src/generated/prisma/client';
+import { hashSync } from 'bcryptjs';
 import { seedPresets, ELEGANTE_CONFIG } from './seed-presets';
 
 const prisma = new PrismaClient();
@@ -375,7 +376,27 @@ async function main() {
   });
   console.log(`  + ${restaurant.name} (${restaurant.slug})\n`);
 
-  // 3. Create categories and dishes
+  // 3. Create demo owner and link to restaurant
+  console.log('Creating demo owner...');
+  const demoUser = await prisma.user.upsert({
+    where: { email: 'demo@aifolly.local' },
+    update: {
+      name: 'Demo Owner',
+      passwordHash: hashSync('demo1234', 10),
+    },
+    create: {
+      email: 'demo@aifolly.local',
+      name: 'Demo Owner',
+      passwordHash: hashSync('demo1234', 10),
+    },
+  });
+  await prisma.restaurant.update({
+    where: { id: restaurant.id },
+    data: { ownerId: demoUser.id },
+  });
+  console.log(`  + ${demoUser.name} (${demoUser.email}) → ${restaurant.slug}\n`);
+
+  // 4. Create categories and dishes
   console.log('Creating categories and dishes...');
   const categoryKeys = Object.keys(MENU_DATA);
 
