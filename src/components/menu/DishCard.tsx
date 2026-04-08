@@ -88,6 +88,7 @@ export default function DishCard({
   const imgRef = useRef<HTMLImageElement>(null);
   const hasImg = !!dish.imageUrl && !imgError;
   const isChef = dish.isChefChoice;
+  const soldOut = !dish.isAvailable;
 
   useEffect(() => {
     if (imgRef.current?.complete && imgRef.current.naturalWidth > 0) {
@@ -97,16 +98,17 @@ export default function DishCard({
 
   return (
     <div
-      onClick={() => setExpanded(!expanded)}
+      onClick={() => !soldOut && setExpanded(!expanded)}
       className="menu-dish-card"
       style={{
         display: 'flex',
         gap: 16,
         padding: '20px 0',
         borderBottom: isLast ? 'none' : `1px solid var(--card-border-color)`,
-        cursor: 'pointer',
+        cursor: soldOut ? 'default' : 'pointer',
         animationDelay: `${index * 0.07}s`,
         position: 'relative',
+        opacity: soldOut ? 0.55 : 1,
       }}
     >
       {/* Image */}
@@ -184,6 +186,24 @@ export default function DishCard({
           >
             {dish.name}
           </h3>
+          {soldOut && (
+            <span
+              style={{
+                fontSize: 9,
+                letterSpacing: '0.1em',
+                textTransform: 'uppercase',
+                fontFamily: 'var(--dish-desc-font)',
+                fontWeight: 500,
+                color: 'var(--dish-allergen-text)',
+                border: '1px solid var(--menu-divider-color)',
+                borderRadius: 3,
+                padding: '2px 7px',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              Esaurito
+            </span>
+          )}
           <div
             style={{
               fontFamily: 'var(--dish-price-font)',
@@ -192,6 +212,7 @@ export default function DishCard({
               color: 'var(--dish-price-color)',
               whiteSpace: 'nowrap',
               letterSpacing: '0.02em',
+              textDecoration: soldOut ? 'line-through' : 'none',
             }}
           >
             {formatPrice(dish)}

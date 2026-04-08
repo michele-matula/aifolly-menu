@@ -1,13 +1,19 @@
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { getPublicRestaurant } from '@/lib/queries/restaurant';
+import { tryGetOwnershipBySlug } from '@/lib/auth-helpers';
 import type { FullTheme } from '@/lib/validators/theme';
 import ThemeProvider from '@/components/menu/ThemeProvider';
 import MenuHeader from '@/components/menu/MenuHeader';
 import MenuContent from '@/components/menu/MenuContent';
 import MenuFooter from '@/components/menu/MenuFooter';
 
-type Props = { params: Promise<{ slug: string }> };
+export const dynamic = 'force-dynamic';
+
+type Props = {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ previewDraft?: string }>;
+};
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
@@ -23,18 +29,22 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export default async function MenuPageRoute({ params }: Props) {
+export default async function MenuPageRoute({ params, searchParams }: Props) {
   const { slug } = await params;
+  const { previewDraft } = await searchParams;
   const restaurant = await getPublicRestaurant(slug);
 
   if (!restaurant) {
     notFound();
   }
 
+  const useDraft =
+    previewDraft === '1' && (await tryGetOwnershipBySlug(slug)) !== null;
+
   const theme: FullTheme = {
-    cover: restaurant.themeCoverDraft ?? restaurant.themeCover,
-    menu: restaurant.themeMenuDraft ?? restaurant.themeMenu,
-    dish: restaurant.themeDishDraft ?? restaurant.themeDish,
+    cover: useDraft ? (restaurant.themeCoverDraft ?? restaurant.themeCover) : restaurant.themeCover,
+    menu: useDraft ? (restaurant.themeMenuDraft ?? restaurant.themeMenu) : restaurant.themeMenu,
+    dish: useDraft ? (restaurant.themeDishDraft ?? restaurant.themeDish) : restaurant.themeDish,
   } as FullTheme;
 
   const categories = restaurant.categories.map(cat => ({
