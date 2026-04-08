@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { notFound } from 'next/navigation';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import type { Restaurant } from '@/generated/prisma/client';
 
 export async function getCurrentUser() {
   const session = await auth();
@@ -36,5 +37,22 @@ export async function requireOwnershipBySlug(slug: string) {
     notFound();
   }
 
+  return restaurant;
+}
+
+/**
+ * Soft ownership check: returns the restaurant if the current user owns it,
+ * null otherwise. Never redirects or throws — safe for degrading gracefully
+ * (e.g. ignoring preview params for non-owners).
+ */
+export async function tryGetOwnershipBySlug(slug: string): Promise<Restaurant | null> {
+  const session = await auth();
+  if (!session?.user?.id) return null;
+
+  const restaurant = await prisma.restaurant.findUnique({
+    where: { slug },
+  });
+
+  if (!restaurant || restaurant.ownerId !== session.user.id) return null;
   return restaurant;
 }
