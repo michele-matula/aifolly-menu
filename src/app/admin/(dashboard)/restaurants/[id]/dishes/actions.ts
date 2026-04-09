@@ -5,7 +5,7 @@ import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { requireOwnership } from '@/lib/auth-helpers';
 import { AdminDishSchema, type PriceVariantInputType } from '@/lib/validators/dish';
-import type { DishTag, Allergen } from '@/generated/prisma/client';
+import type { DishTag, Allergen } from '@prisma/client';
 
 export type DishActionState = {
   success: boolean;

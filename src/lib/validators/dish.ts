@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { DishTag, Allergen } from '@/generated/prisma/client';
+import { DishTag, Allergen } from '@prisma/client';
 
 // ── Schema Fase 1 (API pubblica) ────────────────────────────
 

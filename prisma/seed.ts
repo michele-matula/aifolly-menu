@@ -1,4 +1,4 @@
-import { PrismaClient, DishTag, Allergen } from '../src/generated/prisma/client';
+import { PrismaClient, DishTag, Allergen } from '@prisma/client';
 import { hashSync } from 'bcryptjs';
 import { seedPresets, ELEGANTE_CONFIG } from './seed-presets';
 

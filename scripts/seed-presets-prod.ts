@@ -10,7 +10,7 @@
  *   npx tsx scripts/seed-presets-prod.ts
  */
 
-import { PrismaClient } from '../src/generated/prisma/client';
+import { PrismaClient } from '@prisma/client';
 import { seedPresets } from '../prisma/seed-presets';
 
 async function main() {

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useActionState } from 'react';
 import { useRouter } from 'next/navigation';
-import { DishTag, Allergen } from '@/generated/prisma/enums';
+import { DishTag, Allergen } from '@prisma/client';
 import ImageUploader from '@/components/admin/ImageUploader';
 import {
   createDish,

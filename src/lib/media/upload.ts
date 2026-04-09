@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { supabaseAdmin, STORAGE_BUCKET } from '@/lib/supabase/server';
 import { ACCEPTED_MIME_TYPES, MAX_FILE_SIZE } from '@/lib/validators/upload';
-import type { MediaKind } from '@/generated/prisma/client';
+import type { MediaKind } from '@prisma/client';
 
 function sanitizeFilename(name: string): string {
   return name

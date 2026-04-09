@@ -3,7 +3,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { uploadImageToStorage } from '@/lib/media/upload';
 import { MediaKindSchema } from '@/lib/validators/upload';
-import type { MediaKind } from '@/generated/prisma/client';
+import type { MediaKind } from '@prisma/client';
 
 export async function POST(request: Request) {
   const session = await auth();
