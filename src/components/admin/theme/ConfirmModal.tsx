@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
+import { useFocusTrap } from '@/hooks/useFocusTrap';
 
 type Props = {
   title: string;
@@ -21,6 +22,9 @@ export default function ConfirmModal({
   onCancel,
   isPending,
 }: Props) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialogRef, true);
+
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && !isPending) onCancel();
@@ -37,7 +41,7 @@ export default function ConfirmModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/30" onClick={isPending ? undefined : onCancel} />
-      <div className="relative bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+      <div ref={dialogRef} role="dialog" aria-modal="true" className="relative bg-white rounded-lg shadow-xl w-full max-w-md p-6">
         <h3 className="text-base font-semibold text-[#1c1917] mb-2">{title}</h3>
         <p className="text-sm text-[#78716c] mb-6">{message}</p>
         <div className="flex justify-end gap-3">

@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { toastSuccess, toastError } from '@/lib/toast';
+import { useFocusTrap } from '@/hooks/useFocusTrap';
 import Link from 'next/link';
 import {
   DndContext,
@@ -252,20 +253,47 @@ export default function DishesList({ restaurantId, dishes: initialDishes, filter
 
       {/* Delete confirmation */}
       {deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/30" onClick={() => setDeleteTarget(null)} />
-          <div className="relative bg-white rounded-lg shadow-xl w-full max-w-sm p-6">
-            <h3 className="text-base font-semibold text-[#1c1917] mb-2">Elimina piatto</h3>
-            <p className="text-sm text-[#78716c] mb-6">
-              Sei sicuro di voler eliminare <strong>{deleteTarget.name}</strong>?
-            </p>
-            <div className="flex justify-end gap-3">
-              <button type="button" onClick={() => setDeleteTarget(null)} className="px-4 py-2 text-[13px] text-[#78716c] cursor-pointer">Annulla</button>
-              <button type="button" onClick={handleDelete} className="px-4 py-2 text-[13px] font-medium text-white bg-red-500 rounded-md hover:bg-red-600 transition-colors cursor-pointer">Elimina</button>
-            </div>
-          </div>
-        </div>
+        <DishDeleteDialog
+          dishName={deleteTarget.name}
+          onCancel={() => setDeleteTarget(null)}
+          onConfirm={handleDelete}
+        />
       )}
+    </div>
+  );
+}
+
+function DishDeleteDialog({
+  dishName,
+  onCancel,
+  onConfirm,
+}: {
+  dishName: string;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialogRef, true);
+
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') onCancel(); };
+    document.addEventListener('keydown', handleEsc);
+    return () => document.removeEventListener('keydown', handleEsc);
+  }, [onCancel]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/30" onClick={onCancel} />
+      <div ref={dialogRef} role="dialog" aria-modal="true" className="relative bg-white rounded-lg shadow-xl w-full max-w-sm p-6">
+        <h3 className="text-base font-semibold text-[#1c1917] mb-2">Elimina piatto</h3>
+        <p className="text-sm text-[#78716c] mb-6">
+          Sei sicuro di voler eliminare <strong>{dishName}</strong>?
+        </p>
+        <div className="flex justify-end gap-3">
+          <button type="button" onClick={onCancel} className="px-4 py-2 text-[13px] text-[#78716c] cursor-pointer">Annulla</button>
+          <button type="button" onClick={onConfirm} className="px-4 py-2 text-[13px] font-medium text-white bg-red-500 rounded-md hover:bg-red-600 transition-colors cursor-pointer">Elimina</button>
+        </div>
+      </div>
     </div>
   );
 }

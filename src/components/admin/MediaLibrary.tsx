@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { toastSuccess, toastError } from '@/lib/toast';
+import { useFocusTrap } from '@/hooks/useFocusTrap';
 
 interface MediaItem {
   id: string;
@@ -146,23 +147,50 @@ export default function MediaLibrary({ restaurantId, initialAssets, totalSize }:
 
       {/* Delete confirmation */}
       {deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/30" onClick={() => setDeleteTarget(null)} />
-          <div className="relative bg-white rounded-lg shadow-xl w-full max-w-sm p-6">
-            <h3 className="text-base font-semibold text-[#1c1917] mb-2">Elimina immagine</h3>
-            <p className="text-sm text-[#78716c] mb-1">
-              Sei sicuro di voler eliminare <strong>{deleteTarget.filename}</strong>?
-            </p>
-            <p className="text-[12px] text-[#a8a29e] mb-6">
-              Se questa immagine è in uso, il menu pubblico mostrerà un&apos;immagine mancante.
-            </p>
-            <div className="flex justify-end gap-3">
-              <button type="button" onClick={() => setDeleteTarget(null)} className="px-4 py-2 text-[13px] text-[#78716c] cursor-pointer">Annulla</button>
-              <button type="button" onClick={handleDelete} className="px-4 py-2 text-[13px] font-medium text-white bg-red-500 rounded-md hover:bg-red-600 transition-colors cursor-pointer">Elimina</button>
-            </div>
-          </div>
-        </div>
+        <MediaDeleteDialog
+          filename={deleteTarget.filename}
+          onCancel={() => setDeleteTarget(null)}
+          onConfirm={handleDelete}
+        />
       )}
+    </div>
+  );
+}
+
+function MediaDeleteDialog({
+  filename,
+  onCancel,
+  onConfirm,
+}: {
+  filename: string;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialogRef, true);
+
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') onCancel(); };
+    document.addEventListener('keydown', handleEsc);
+    return () => document.removeEventListener('keydown', handleEsc);
+  }, [onCancel]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/30" onClick={onCancel} />
+      <div ref={dialogRef} role="dialog" aria-modal="true" className="relative bg-white rounded-lg shadow-xl w-full max-w-sm p-6">
+        <h3 className="text-base font-semibold text-[#1c1917] mb-2">Elimina immagine</h3>
+        <p className="text-sm text-[#78716c] mb-1">
+          Sei sicuro di voler eliminare <strong>{filename}</strong>?
+        </p>
+        <p className="text-[12px] text-[#a8a29e] mb-6">
+          Se questa immagine è in uso, il menu pubblico mostrerà un&apos;immagine mancante.
+        </p>
+        <div className="flex justify-end gap-3">
+          <button type="button" onClick={onCancel} className="px-4 py-2 text-[13px] text-[#78716c] cursor-pointer">Annulla</button>
+          <button type="button" onClick={onConfirm} className="px-4 py-2 text-[13px] font-medium text-white bg-red-500 rounded-md hover:bg-red-600 transition-colors cursor-pointer">Elimina</button>
+        </div>
+      </div>
     </div>
   );
 }
