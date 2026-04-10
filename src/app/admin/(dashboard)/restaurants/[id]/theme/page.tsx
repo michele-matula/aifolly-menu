@@ -2,8 +2,20 @@ import { requireOwnership } from '@/lib/auth-helpers';
 import { prisma } from '@/lib/prisma';
 import type { CoverTheme, MenuTheme, DishTheme } from '@/lib/validators/theme';
 import ThemeBuilder from '@/components/admin/theme/ThemeBuilder';
+import EmptyThemeState from '@/components/admin/theme/EmptyThemeState';
 
 type Props = { params: Promise<{ id: string }> };
+
+// A restaurant created without a preset has themeCover/themeMenu/themeDish
+// equal to {} (Prisma JSON default). The ThemeBuilder assumes those JSON
+// blobs are populated FontConfig structures and crashes on empty objects.
+// Detect that case here and gate to an empty state instead.
+function isJsonObjectEmpty(value: unknown): boolean {
+  return (
+    value == null ||
+    (typeof value === 'object' && !Array.isArray(value) && Object.keys(value as object).length === 0)
+  );
+}
 
 export default async function ThemePage({ params }: Props) {
   const { id } = await params;
@@ -23,6 +35,29 @@ export default async function ThemePage({ params }: Props) {
       dishConfig: true,
     },
   });
+
+  const mappedPresets = presets.map(p => ({
+    id: p.id,
+    slug: p.slug,
+    name: p.name,
+    description: p.description,
+    category: p.category,
+    coverConfig: p.coverConfig as CoverTheme,
+    menuConfig: p.menuConfig as MenuTheme,
+    dishConfig: p.dishConfig as DishTheme,
+  }));
+
+  const isThemeEmpty =
+    isJsonObjectEmpty(restaurant.themeCover) &&
+    isJsonObjectEmpty(restaurant.themeMenu) &&
+    isJsonObjectEmpty(restaurant.themeDish) &&
+    isJsonObjectEmpty(restaurant.themeCoverDraft) &&
+    isJsonObjectEmpty(restaurant.themeMenuDraft) &&
+    isJsonObjectEmpty(restaurant.themeDishDraft);
+
+  if (isThemeEmpty) {
+    return <EmptyThemeState restaurantId={restaurant.id} presets={mappedPresets} />;
+  }
 
   const workingTheme = {
     cover: (restaurant.themeCoverDraft ?? restaurant.themeCover) as CoverTheme,
@@ -49,16 +84,7 @@ export default async function ThemePage({ params }: Props) {
       initialTheme={workingTheme}
       liveTheme={liveTheme}
       hasDraft={hasDraft}
-      presets={presets.map(p => ({
-        id: p.id,
-        slug: p.slug,
-        name: p.name,
-        description: p.description,
-        category: p.category,
-        coverConfig: p.coverConfig as CoverTheme,
-        menuConfig: p.menuConfig as MenuTheme,
-        dishConfig: p.dishConfig as DishTheme,
-      }))}
+      presets={mappedPresets}
     />
   );
 }
