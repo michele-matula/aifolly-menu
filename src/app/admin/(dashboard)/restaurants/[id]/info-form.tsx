@@ -1,12 +1,16 @@
 'use client';
 
-import { useActionState, useEffect, useState } from 'react';
-import { updateRestaurantInfo, type InfoActionState } from './actions';
+import { useActionState, useEffect, useState, useTransition } from 'react';
+import { updateRestaurantInfo, setRestaurantPublished, type InfoActionState } from './actions';
 import ImageUploader from '@/components/admin/ImageUploader';
-import { toastSuccess } from '@/lib/toast';
+import ToggleField from '@/components/admin/theme/ToggleField';
+import ConfirmModal from '@/components/admin/theme/ConfirmModal';
+import { toastSuccess, toastError } from '@/lib/toast';
 
 interface InfoFormProps {
   restaurantId: string;
+  isPublished: boolean;
+  slug: string;
   defaultValues: {
     name: string;
     slug: string;
@@ -43,7 +47,7 @@ const FIELDS: {
   { name: 'website', label: 'Sito web', type: 'url' },
 ];
 
-export default function InfoForm({ restaurantId, defaultValues }: InfoFormProps) {
+export default function InfoForm({ restaurantId, isPublished, slug, defaultValues }: InfoFormProps) {
   const boundAction = updateRestaurantInfo.bind(null, restaurantId);
   const [state, formAction, isPending] = useActionState<InfoActionState, FormData>(
     boundAction,
@@ -53,11 +57,31 @@ export default function InfoForm({ restaurantId, defaultValues }: InfoFormProps)
   const [logoUrl, setLogoUrl] = useState<string | null>(defaultValues.logoUrl || null);
   const [coverUrl, setCoverUrl] = useState<string | null>(defaultValues.coverUrl || null);
 
+  const [published, setPublished] = useState(isPublished);
+  const [pendingNext, setPendingNext] = useState<boolean | null>(null);
+  const [isPublishPending, startPublishTransition] = useTransition();
+
   useEffect(() => {
     if (state.success) {
       toastSuccess('Modifiche salvate.');
     }
   }, [state]);
+
+  const confirmPublishChange = () => {
+    if (pendingNext === null) return;
+    const next = pendingNext;
+    startPublishTransition(async () => {
+      const result = await setRestaurantPublished(restaurantId, next);
+      if (result.success) {
+        setPublished(next);
+        setPendingNext(null);
+        toastSuccess(next ? 'Ristorante pubblicato.' : 'Ristorante depubblicato.');
+      } else {
+        setPendingNext(null);
+        toastError(result.error ?? 'Errore durante l\'aggiornamento.');
+      }
+    });
+  };
 
   const inputClass =
     'w-full px-3 py-2 text-sm border border-[#e7e5e4] rounded-md bg-white text-[#1c1917] outline-none focus:border-[#c9b97a] focus:ring-1 focus:ring-[#c9b97a]/30 transition-colors';
@@ -65,7 +89,9 @@ export default function InfoForm({ restaurantId, defaultValues }: InfoFormProps)
     'w-full px-3 py-2 text-sm border border-red-300 rounded-md bg-white text-[#1c1917] outline-none focus:border-red-400 focus:ring-1 focus:ring-red-200 transition-colors';
 
   return (
-    <form action={formAction} className="max-w-xl">
+    <>
+    <div className="max-w-xl">
+    <form action={formAction}>
       {/* General error */}
       {state.error && !state.success && (
         <div className="mb-6 px-4 py-3 text-[13px] text-red-700 bg-red-50 border border-red-200 rounded-md">
@@ -161,5 +187,43 @@ export default function InfoForm({ restaurantId, defaultValues }: InfoFormProps)
         </button>
       </div>
     </form>
+
+    {/* Stato pubblicazione — controllo indipendente dal form */}
+    <div className="mt-12 pt-8 border-t border-[#e7e5e4]">
+      <h3 className="text-sm font-semibold text-[#44403c] uppercase tracking-wider mb-4">
+        Stato pubblicazione
+      </h3>
+      <div className="px-4 py-4 border border-[#e7e5e4] rounded-md bg-[#fafaf9]">
+        <ToggleField
+          label="Visibile pubblicamente"
+          checked={published}
+          onChange={next => setPendingNext(next)}
+        />
+        <p className="mt-2 ml-12 text-[12px] text-[#78716c]">
+          {published ? (
+            <>I clienti possono vedere il menu su <code className="text-[#44403c]">/{slug}</code>.</>
+          ) : (
+            <>Il ristorante è in <strong>bozza</strong>: non è raggiungibile dai clienti.</>
+          )}
+        </p>
+      </div>
+    </div>
+    </div>
+    {pendingNext !== null && (
+      <ConfirmModal
+        title={pendingNext ? 'Pubblicare il ristorante?' : 'Depubblicare il ristorante?'}
+        message={
+          pendingNext
+            ? `Il ristorante diventerà visibile a chiunque visiti /${slug}. Vuoi pubblicarlo ora?`
+            : 'I clienti non potranno più vedere il menu. Vuoi depubblicare il ristorante?'
+        }
+        confirmLabel={pendingNext ? 'Pubblica' : 'Depubblica'}
+        confirmVariant={pendingNext ? 'primary' : 'destructive'}
+        onConfirm={confirmPublishChange}
+        onCancel={() => setPendingNext(null)}
+        isPending={isPublishPending}
+      />
+    )}
+    </>
   );
 }
