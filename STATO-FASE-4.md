@@ -3,7 +3,9 @@
 Fase 4 = Polish e sicurezza. Lo Step 1 (security baseline) ha alzato
 la base di sicurezza prima di affrontare gli altri temi. Lo Step 2
 (data cache + tag invalidation) ha rimosso l'overhead DB sul menu
-pubblico mantenendo immediatezza delle modifiche admin.
+pubblico mantenendo immediatezza delle modifiche admin. Lo Step 3
+(loading states + boundaries) ha chiuso i gap di skeleton/error
+boundary residui di Fase 2 Step 8.
 
 ## Branch e workflow
 
@@ -236,6 +238,90 @@ legacy. Motivazioni:
 `unstable_cache` quasi sicuramente sparirà in Next 17. La migrazione
 al directive `'use cache'` è debt esplicito, vedi sotto.
 
+## Step 3 — Loading states + error boundaries
+
+Obiettivo: chiudere i gap di skeleton e error boundary residui da
+Fase 2 Step 8. Pure UI work, basso rischio, niente logica toccata.
+
+### Sub-step completati
+
+| Sub | Cosa | File chiave | Commit |
+|---|---|---|---|
+| 3.1 | Skeleton content-shaped per la pagina menu pubblica | `(menu)/[slug]/menu/loading.tsx` | `f545374` |
+| 3.2 | Form skeletons + root boundaries (4 file) | `dishes/new/loading.tsx`, `dishes/[dishId]/edit/loading.tsx`, `not-found.tsx`, `global-error.tsx` | `4c8dc81` |
+| 3.3 | Update STATO-FASE-4.md | `STATO-FASE-4.md` | (commit pendente) |
+
+### Audit pre-step (cosa esisteva già da Fase 2 Step 8)
+
+**Pagine pubbliche**: il cover (`(menu)/[slug]`) aveva già loading,
+error e not-found di alta qualità (skeleton content-shaped, error
+brandizzato con retry). Il menu (`(menu)/[slug]/menu`) ereditava
+loading/error/not-found dal cover, **causando un flash visivo
+sbagliato durante il tap "Scopri il menu"**: il cliente vedeva uno
+skeleton a forma di copertina che poi diventava un menu.
+
+**Admin**: 7 file `loading.tsx` esistenti (dashboard, restaurant info,
+categories, dishes, media, qr, theme) + 2 file `error.tsx` (dashboard,
+restaurant info). Le sub-route `dishes/new` e `dishes/[dishId]/edit`
+**ereditavano lo skeleton di dishes** (lista) — sbagliato, sono form.
+
+**Root**: niente `not-found.tsx` (Next default per URL non matchati),
+niente `global-error.tsx` (no last-resort boundary).
+
+### Sub-step 3.1 — Menu page skeleton
+
+Nuovo `(menu)/[slug]/menu/loading.tsx` ~140 righe. Stessa palette e
+animazione `skeletonPulse` del cover loading per coerenza visiva
+durante la transizione. Struttura content-shaped: header hero, sticky
+nav (5 pill), section header, 4 dish card (thumbnail + title +
+description + price), footer placeholder. Tutto inline `<style>` e
+inline styles, no Tailwind — coerente con lo stile del cover loading.
+
+### Sub-step 3.2 — Form skeletons + root boundaries
+
+4 file nuovi:
+
+- **`dishes/new/loading.tsx`** e **`dishes/[dishId]/edit/loading.tsx`**:
+  form skeleton con 6 coppie label/input + 2 button. Tailwind
+  (`animate-pulse bg-stone-100`) per coerenza con gli altri admin
+  loading. **Duplicati intenzionalmente**: estrarre `<DishFormSkeleton/>`
+  a 2 call site è scope creep prematuro. Se in futuro nasce un terzo
+  call site, valuto refactor.
+- **`src/app/not-found.tsx`**: root 404 brandizzato per URL non
+  matchati da nessuna route. Usa il root layout (Geist + Tailwind).
+  Le pagine `(menu)` hanno il loro `not-found.tsx` dedicato con copy
+  diversa ("ristorante non trovato"), che resta prioritario sul match
+  più specifico.
+- **`src/app/global-error.tsx`**: last-resort error boundary con il
+  proprio `<html>` + `<body>` (sostituisce il root layout intero se
+  attivato). **Minimale**: niente font custom, niente Tailwind, niente
+  dipendenze dal layout — deve funzionare anche se il layout stesso
+  è crashato. `'use client'` come richiede il pattern Next.
+
+### Cosa NON ho fatto in Step 3 (debt esplicito)
+
+- **Refactor di `theme/loading.tsx`** da skeleton generico a
+  content-shaped. Funziona, è polish ulteriore non necessario.
+- **Loading skeleton per `/admin/login` e `/`**: entrambi static, no
+  fetching, no value.
+- **Estrazione `<DishFormSkeleton />` componente condiviso**: 2 call
+  site, DRY prematuro.
+- **Audit a11y dei boundary** (focus management, screen reader
+  announcements del loading state): è Step 5.
+- **Fix warning Google Fonts preload**: durante l'audit ho notato che
+  `(menu)/[slug]/error.tsx` e `not-found.tsx` includono inline un
+  `<link href="https://fonts.googleapis.com/css2?family=Cormorant..."`
+  che usa la stessa URL del warning. Potrebbe essere correlato. Lo
+  affronto in Step 6 (performance review).
+
+### Verifica e workflow
+
+- Branch dedicato `feature/fase-4-step-3-loading-states`
+- 3 commit (uno per sub-step come da plan)
+- `tsc --noEmit` e `npm run build` puliti dopo ogni commit
+- Test manuale in dev: navigazione cover → menu, refresh durante load,
+  apertura form dish nuovo, simulazione 404 con URL random
+
 ## Debt esplicito (rimandato a sub-step / fasi successive)
 
 ### Da Step 1 (sicurezza)
@@ -282,8 +368,15 @@ al directive `'use cache'` è debt esplicito, vedi sotto.
   "preloaded but not used within a few seconds" sull'URL di
   `fonts.googleapis.com/css2?family=...`. Probabile mismatch
   `as` attribute o URL del preload diverso da quello effettivamente
-  caricato. Non bloccante. Da affrontare in Step 6 di Fase 4
-  (performance review).
+  caricato. **Indizio scoperto in Step 3**: i file
+  `(menu)/[slug]/error.tsx` e `not-found.tsx` includono inline un
+  `<link>` con la stessa URL Google Fonts — potrebbe essere la
+  sorgente del preload non usato. Da verificare e fixare in
+  Step 6 (performance review).
+- **Refactor `theme/loading.tsx`** da generico a content-shaped:
+  funziona ma è meno polish degli altri loading. Non bloccante.
+- **`<DishFormSkeleton />` componente condiviso**: solo se nasce un
+  terzo call site oltre a `dishes/new` e `dishes/[dishId]/edit`.
 
 ## Verifica e workflow seguito (per ogni sub-step)
 
@@ -297,16 +390,19 @@ al directive `'use cache'` è debt esplicito, vedi sotto.
    pannello admin (l'utente)
 8. Smoke test in prod post-deploy Vercel prima di chiudere lo step
 
-## Prossimi step di Fase 4 (dopo Step 2)
+## Prossimi step di Fase 4 (dopo Step 3)
 
-- **Step 3 — Login rate limit + altre rifiniture sicurezza** (debt
-  da Step 1).
-- **Step 4 — Skeleton loader e stati di errore mancanti**.
+- **Step 4 — Login rate limit + altre rifiniture sicurezza** (debt
+  da Step 1, originalmente "Step 3" nello scaletta originale).
 - **Step 5 — Audit a11y completo** (form admin, screen reader, focus
   trap esteso al di là delle modali).
 - **Step 6 — Performance review** (Core Web Vitals sul menu pubblico,
   ottimizzazione immagini, lazy loading, **fix warning Google Fonts
   preload**).
 
-L'ordine può cambiare in base alle priorità — questo è solo un piano
-indicativo da rivalutare step per step.
+L'ordine può cambiare in base alle priorità. Nota: la numerazione
+degli step segue l'ordine in cui li affrontiamo, NON l'ordine
+originale dello scaletta nello spec. Il "Step 3" che abbiamo appena
+chiuso era originariamente "Step 4" nello scaletta — abbiamo
+anticipato il polish UX rispetto al login rate limit per cambio
+di registro tra blocchi pesanti di security/caching.
