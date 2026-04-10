@@ -1,14 +1,12 @@
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
-import { getPublicRestaurant } from '@/lib/queries/restaurant';
+import { getPublicRestaurant, getCachedPublicRestaurant } from '@/lib/queries/restaurant';
 import { tryGetOwnershipBySlug } from '@/lib/auth-helpers';
 import type { FullTheme } from '@/lib/validators/theme';
 import ThemeProvider from '@/components/menu/ThemeProvider';
 import MenuHeader from '@/components/menu/MenuHeader';
 import MenuContent from '@/components/menu/MenuContent';
 import MenuFooter from '@/components/menu/MenuFooter';
-
-export const dynamic = 'force-dynamic';
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -17,7 +15,7 @@ type Props = {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const restaurant = await getPublicRestaurant(slug);
+  const restaurant = await getCachedPublicRestaurant(slug);
 
   if (!restaurant) {
     return { title: 'Ristorante non trovato' };
@@ -32,14 +30,20 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function MenuPageRoute({ params, searchParams }: Props) {
   const { slug } = await params;
   const { previewDraft } = await searchParams;
-  const restaurant = await getPublicRestaurant(slug);
+
+  // Preview mode (owner autenticato) deve essere sempre fresco; il pubblico
+  // passa per la cache taggata invalidata dalle mutation admin.
+  const isPreviewRequest = previewDraft === '1';
+  const restaurant = isPreviewRequest
+    ? await getPublicRestaurant(slug)
+    : await getCachedPublicRestaurant(slug);
 
   if (!restaurant) {
     notFound();
   }
 
   const useDraft =
-    previewDraft === '1' && (await tryGetOwnershipBySlug(slug)) !== null;
+    isPreviewRequest && (await tryGetOwnershipBySlug(slug)) !== null;
 
   const theme: FullTheme = {
     cover: useDraft ? (restaurant.themeCoverDraft ?? restaurant.themeCover) : restaurant.themeCover,
