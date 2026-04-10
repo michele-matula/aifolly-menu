@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { requireOwnership } from '@/lib/auth-helpers';
+import { invalidateRestaurantPublic } from '@/lib/cache/restaurant';
 import { AdminCreateCategorySchema, AdminUpdateCategorySchema } from '@/lib/validators/category';
 
 export type CategoryActionState = {
@@ -23,8 +24,7 @@ function slugify(text: string): string {
 
 async function revalidateRestaurant(restaurantId: string, slug: string) {
   revalidatePath(`/admin/restaurants/${restaurantId}/categories`);
-  revalidatePath(`/${slug}`);
-  revalidatePath(`/${slug}/menu`);
+  invalidateRestaurantPublic(slug);
 }
 
 export async function createCategory(

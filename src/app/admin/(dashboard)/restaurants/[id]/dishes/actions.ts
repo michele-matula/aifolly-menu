@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { requireOwnership } from '@/lib/auth-helpers';
+import { invalidateRestaurantPublic } from '@/lib/cache/restaurant';
 import { AdminDishSchema, type PriceVariantInputType } from '@/lib/validators/dish';
 import type { DishTag, Allergen } from '@prisma/client';
 
@@ -15,8 +16,7 @@ export type DishActionState = {
 
 async function revalidateRestaurant(restaurantId: string, slug: string) {
   revalidatePath(`/admin/restaurants/${restaurantId}/dishes`);
-  revalidatePath(`/${slug}`);
-  revalidatePath(`/${slug}/menu`);
+  invalidateRestaurantPublic(slug);
 }
 
 async function verifyDishOwnership(restaurantId: string, dishId: string) {
