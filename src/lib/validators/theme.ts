@@ -1,11 +1,36 @@
 import { z } from 'zod';
+import { FONT_FAMILY_SET } from '@/lib/theme/google-fonts';
 
 // ── Shared schemas ──────────────────────────────────────────
 
 export const HexColorSchema = z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Colore HEX non valido');
 
+// Whitelist server-side: solo font del catalogo curato (anti CSS injection)
+export const FontFamilySchema = z
+  .string()
+  .refine(val => FONT_FAMILY_SET.has(val), { message: 'Font non consentito' });
+
+// L'URL dell'immagine di sfondo deve provenire dal Supabase Storage del progetto.
+// Fail-closed: se NEXT_PUBLIC_SUPABASE_URL manca o l'URL è malformato, rifiuta.
+export const SupabaseImageUrlSchema = z
+  .string()
+  .url()
+  .refine(
+    val => {
+      try {
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        if (!supabaseUrl) return false;
+        const allowedHost = new URL(supabaseUrl).host;
+        return new URL(val).host === allowedHost;
+      } catch {
+        return false;
+      }
+    },
+    { message: 'L\'URL immagine deve provenire da Supabase Storage' }
+  );
+
 export const FontConfigSchema = z.object({
-  family: z.string().min(1).max(100),
+  family: FontFamilySchema,
   weight: z.enum(['100', '200', '300', '400', '500', '600', '700', '800', '900']).default('400'),
   style: z.enum(['normal', 'italic']).default('normal'),
   size: z.number().min(10).max(120),
@@ -19,7 +44,7 @@ export const FontConfigSchema = z.object({
 export const CoverThemeSchema = z.object({
   // Background
   backgroundColor: HexColorSchema.default('#FAFAF8'),
-  backgroundImageUrl: z.string().url().optional(),
+  backgroundImageUrl: SupabaseImageUrlSchema.optional(),
   backgroundOverlayColor: HexColorSchema.default('#000000'),
   backgroundOverlayOpacity: z.number().min(0).max(1).default(0.3),
 

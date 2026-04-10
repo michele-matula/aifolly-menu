@@ -65,6 +65,11 @@ export const CURATED_FONTS: readonly CuratedFont[] = [
   { family: 'JetBrains Mono', category: 'monospace', weights: ['300', '400', '500', '600', '700'], usage: 'menu' },
 ] as const;
 
+/** Whitelist set per validazione server-side dei nomi font (anti CSS injection) */
+export const FONT_FAMILY_SET: ReadonlySet<string> = new Set(
+  CURATED_FONTS.map(f => f.family)
+);
+
 /** Returns fonts usable for a given context, including 'both' */
 export function getFontsByUsage(usage: 'cover' | 'menu'): CuratedFont[] {
   return CURATED_FONTS.filter(f => f.usage === usage || f.usage === 'both');

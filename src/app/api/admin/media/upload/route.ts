@@ -3,12 +3,24 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { uploadImageToStorage } from '@/lib/media/upload';
 import { MediaKindSchema } from '@/lib/validators/upload';
+import { checkRateLimit } from '@/lib/rate-limit';
 import type { MediaKind } from '@prisma/client';
 
 export async function POST(request: Request) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ success: false, error: 'Non autenticato.' }, { status: 401 });
+  }
+
+  const rate = checkRateLimit(`upload:${session.user.id}`, 10, 60_000);
+  if (!rate.allowed) {
+    return NextResponse.json(
+      { success: false, error: 'Troppi upload. Riprova tra qualche secondo.' },
+      {
+        status: 429,
+        headers: { 'Retry-After': Math.ceil(rate.resetInMs / 1000).toString() },
+      }
+    );
   }
 
   const formData = await request.formData();
