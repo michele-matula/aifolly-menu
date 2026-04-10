@@ -14,19 +14,19 @@ AiFolly Menu è una piattaforma SaaS multi-tenant per la creazione e gestione di
 
 
 
-\- \*\*Framework\*\*: Next.js 14+ (App Router) con TypeScript
+\- \*\*Framework\*\*: Next.js 16 (App Router, Turbopack) con TypeScript
 
 \- \*\*Styling\*\*: Tailwind CSS + shadcn/ui (per il pannello admin)
 
 \- \*\*Database\*\*: PostgreSQL (Supabase per dev e prod)
 
-\- \*\*ORM\*\*: Prisma
+\- \*\*ORM\*\*: Prisma 6 (`prisma-client-js` provider, vedi `STATO-FASE-3.md` per il refactor forzato)
 
 \- \*\*Validazione\*\*: Zod
 
-\- \*\*Auth\*\*: NextAuth.js v5 (da fase 3, non ora)
+\- \*\*Auth\*\*: NextAuth.js v5 (Credentials, JWT session, in produzione da Fase 2)
 
-\- \*\*Hosting\*\*: Vercel (in produzione)
+\- \*\*Hosting\*\*: Vercel (in produzione su `aifolly-menu.vercel.app`)
 
 
 
@@ -78,13 +78,25 @@ PRIMA DI INIZIARE QUALSIASI TASK, leggi sempre questi documenti:
 
 
 
-Il progetto è VUOTO. Si parte da zero. Non c'è ancora nessun file Next.js, nessun package.json, nessuna installazione.
+Il progetto è in produzione su Vercel da Fase 3. Fasi 1, 2 e 3 completate. Sessione di rodaggio post-deploy completata: 5 bug e debt tecnico chiusi (vedi `STATO-RODAGGIO.md`).
 
 
 
-\## Fase attuale: Fase 1 — Fondamenta
+PRIMA DI INIZIARE QUALSIASI TASK, leggere in ordine:
 
 
 
-Vedi sezione 21.2 della spec per l'ordine di sviluppo completo. La Fase 1 include i task dal numero 1 al 10. Non procedere oltre la Fase 1 senza esplicita richiesta dell'utente.
+1\. `STATO-FASE-2.md` — pannello admin (cosa c'è già implementato, decisioni architetturali)
+
+2\. `STATO-FASE-3.md` — deploy in produzione (decisioni Prisma, bug noti del rodaggio)
+
+3\. `STATO-RODAGGIO.md` — bugfix post-deploy (cosa è stato chiuso e perché)
+
+
+
+\## Fase attuale: Fase 4 — Polish e sicurezza (prossima)
+
+
+
+Fase 4 include: ISR, rate limiting, testing, revalidation, ottimizzazione performance, audit a11y completo. Vedi sezione 21.2 della spec per i task dettagliati. Non procedere oltre Fase 4 senza esplicita richiesta dell'utente.
 

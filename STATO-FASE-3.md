@@ -61,20 +61,15 @@ Creato nuovo script `scripts/create-restaurant.ts` (non esisteva in Fase 2). Mot
 
 **Fix**: modificato `create-restaurant.ts` per caricare il preset via `prisma.themePreset.findUnique()` e copiare `coverConfig`/`menuConfig`/`dishConfig` nei campi del ristorante al momento della creazione.
 
-**Debt residuo minore**: il theme builder NON è defensive contro `themeCover = {}`. Se mai in futuro qualcosa creerà un ristorante con tema vuoto (es. creazione da UI senza preset default), crasha di nuovo. Considerare un fallback difensivo nel componente ThemeBuilder per gestire il caso "tema non ancora configurato" mostrando un CTA tipo "Scegli un preset per iniziare" invece del crash.
+**Debt residuo minore**: ✅ chiuso nel rodaggio post-Fase 3 (vedi `STATO-RODAGGIO.md`). Aggiunto gating in `theme/page.tsx`: se i 6 campi tema (live + draft) sono tutti vuoti, viene renderizzato il nuovo `EmptyThemeState` con il `PresetPicker` in evidenza, invece di montare `ThemeBuilder` che crasha. Resta aperto il caso (non producibile dagli script attuali) di tema parzialmente popolato.
 
-### Bug 2 — Nessuna UI per pubblicare/depubblicare un ristorante (APERTO)
+### Bug 2 — Nessuna UI per pubblicare/depubblicare un ristorante (FIXATO nel rodaggio post-Fase 3)
 
-**Sintomo**: il ristorante viene creato con `isPublished = false` (default schema). La query pubblica `/[slug]` filtra sui ristoranti pubblicati e risponde "Ristorante non trovato" anche se il ristorante esiste nel DB. Ma nel pannello admin non c'è nessun controllo per togglare `isPublished`: non nella tab Info, non nell'header del ristorante, non in nessuna parte.
+**Sintomo**: il ristorante viene creato con `isPublished = false` (default schema). La query pubblica `/[slug]` filtra sui ristoranti pubblicati e risponde "Ristorante non trovato" anche se il ristorante esiste nel DB. Ma nel pannello admin non c'era nessun controllo per togglare `isPublished`.
 
-**Workaround usato**: update manuale via SQL Editor su Supabase: `UPDATE "Restaurant" SET "isPublished" = true WHERE slug = 'best-salerno';`
+**Workaround usato in Fase 3**: update manuale via SQL Editor su Supabase: `UPDATE "Restaurant" SET "isPublished" = true WHERE slug = 'best-salerno';`
 
-**Fix da implementare** (Fase 4 o 5): aggiungere un controllo UI per la pubblicazione. Proposta di design:
-- Nella tab Info, in fondo alla pagina, sezione "Stato pubblicazione" con un toggle "Visibile pubblicamente"
-- Quando si attiva da false → true, mostrare dialog di conferma: "Il ristorante diventerà visibile a chiunque visiti /slug. Sicuro di voler procedere?"
-- Quando si disattiva da true → false, mostrare dialog di conferma: "I clienti non potranno più vedere il menu. Sicuro di voler depubblicare?"
-- In alternativa: bottone nell'header accanto al badge "Bozza" che diventa "Pubblicato" quando attivo
-- Server action dedicata con check che l'utente sia owner del ristorante
+**Fix applicato** (vedi `STATO-RODAGGIO.md`, commit `10be7b1`): aggiunta sezione "Stato pubblicazione" in fondo alla tab Info con `ToggleField` + `ConfirmModal`. Server action `setRestaurantPublished` con `requireOwnership`, update Prisma, e `revalidatePath` su admin + slug pubblico (`/[slug]` e `/[slug]/menu`). I dialog di conferma usano copy diversi e variant `primary`/`destructive` a seconda della direzione (publish vs unpublish). Il badge "Bozza/Pubblicato" nell'header del layout si aggiorna automaticamente grazie a `revalidatePath`.
 
 ## File nuovi creati in Fase 3
 
