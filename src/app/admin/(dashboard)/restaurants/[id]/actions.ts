@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import { requireOwnership } from '@/lib/auth-helpers';
+import { invalidateRestaurantPublic } from '@/lib/cache/restaurant';
 import { UpdateRestaurantInfoSchema } from '@/lib/validators/restaurant';
 
 export type InfoActionState = {
@@ -79,11 +80,9 @@ export async function updateRestaurantInfo(
   });
 
   revalidatePath(`/admin/restaurants/${restaurant.id}`);
-  revalidatePath(`/${oldSlug}`);
-  revalidatePath(`/${oldSlug}/menu`);
+  invalidateRestaurantPublic(oldSlug);
   if (data.slug !== oldSlug) {
-    revalidatePath(`/${data.slug}`);
-    revalidatePath(`/${data.slug}/menu`);
+    invalidateRestaurantPublic(data.slug);
   }
 
   return { success: true };
@@ -103,8 +102,7 @@ export async function setRestaurantPublished(
   });
 
   revalidatePath(`/admin/restaurants/${restaurant.id}`);
-  revalidatePath(`/${restaurant.slug}`);
-  revalidatePath(`/${restaurant.slug}/menu`);
+  invalidateRestaurantPublic(restaurant.slug);
 
   return { success: true };
 }

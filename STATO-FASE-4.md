@@ -1,14 +1,16 @@
 # AiFolly Menu — Stato Fase 4 (in corso)
 
-Fase 4 = Polish e sicurezza. Lo Step 1 (security baseline) è il primo
-blocco di lavoro: alza la base di sicurezza dell'applicazione prima di
-affrontare gli altri temi (ISR, revalidation, performance, a11y).
+Fase 4 = Polish e sicurezza. Lo Step 1 (security baseline) ha alzato
+la base di sicurezza prima di affrontare gli altri temi. Lo Step 2
+(data cache + tag invalidation) ha rimosso l'overhead DB sul menu
+pubblico mantenendo immediatezza delle modifiche admin.
 
 ## Branch e workflow
 
-- Branch di lavoro: `feature/fase-4-security-baseline` (da `main`)
 - Workflow: dev-first, un commit per sub-step, type check + build dopo
-  ogni modifica, smoke test in dev prima di committare.
+  ogni modifica, smoke test in dev prima di committare. Per ogni step
+  un branch dedicato `feature/fase-4-...`, merge `--no-ff` su main,
+  smoke test in prod post-deploy Vercel.
 
 ## Step 1 — Security baseline
 
@@ -124,8 +126,119 @@ automatizzato, è una review per ispezione del codice.
 | A09 | Logging/Monitoring | ❌ | Solo Vercel function logs, no Sentry, no PostHog, no audit log — è il gap più grande, lavoro di Fase 5 |
 | A10 | SSRF | ✅ | L'app non fa fetch server-side di URL forniti dall'utente |
 
+## Step 2 — Data cache + tag invalidation
+
+Obiettivo: rimuovere l'overhead DB sulle pagine pubbliche del menu,
+mantenendo immediatezza nelle modifiche admin (quando il ristoratore
+pubblica un cambio, il visitatore lo vede subito, non dopo 60s).
+
+### Sub-step completati
+
+| Sub | Cosa | File chiave | Commit |
+|---|---|---|---|
+| 2.1 | Data cache helper + RESTAURANT_TAG centralizzato | `lib/cache/restaurant.ts`, `lib/queries/restaurant.ts`, 2 pagine pubbliche | `972bc58` |
+| 2.2 | Tag invalidation in tutte le mutation pubbliche | 4 file di server actions admin | `3a09764` |
+| 2.3 | Test funzionali in dev (5 scenari) | — | (no commit) |
+| 2.4 | Update STATO-FASE-4.md | `STATO-FASE-4.md` | (commit pendente) |
+
+### Sub-step 2.1 — Data cache (non page-level ISR)
+
+**Why data cache e non `export const revalidate = 60`**: in App Router
+le pagine che leggono `searchParams` o cookie diventano automaticamente
+dynamic — `revalidate = 60` non basta. Le 2 pagine pubbliche leggono
+entrambi (`searchParams.previewDraft` per il preview owner, e cookie
+via `tryGetOwnershipBySlug`). Quindi non possiamo cachare la pagina
+intera. Invece cachiamo il **data fetch**: la query Prisma pesante
+(`getPublicRestaurant`) viene wrappata in `unstable_cache` con
+`revalidate: 60` e tag `restaurant:${slug}`. La pagina rende ancora
+per ogni request (~ms), ma il bottleneck DB sparisce.
+
+`force-dynamic` è stato rimosso da entrambe le pagine; l'effetto
+runtime resta lo stesso (sono dinamiche per altri motivi), ma è
+documentalmente corretto.
+
+**Why centralizzare RESTAURANT_TAG**: se i ~5 call site della
+invalidazione costruissero a mano la stringa `restaurant:${slug}`,
+basterebbe un typo in uno solo (`restaurants:` plurale, o
+`restaurant_${slug}` con underscore) per avere un bug **silenzioso**:
+"quando modifico una categoria il menu pubblico si aggiorna subito,
+ma quando modifico un piatto resta vecchio per 60s". Hard da spottare
+in code review. Centralizzare la costante (`RESTAURANT_TAG(slug)`) +
+exporre un singolo helper (`invalidateRestaurantPublic(slug)`) che la
+usa elimina la bug class.
+
+**Why preview branch separato**: le pagine continuano a chiamare
+`getPublicRestaurant` direttamente quando `?previewDraft=1` è settato,
+così l'owner che sta editando vede SEMPRE l'ultimo draft, anche se la
+cache pubblica è calda. Pattern documentato nella spec §9.4.
+
+### Sub-step 2.2 — Hookup invalidazione
+
+Sostituite le chiamate `revalidatePath('/${slug}')` +
+`revalidatePath('/${slug}/menu')` con `invalidateRestaurantPublic(slug)`
+in 4 file di mutation server actions:
+
+- `restaurants/[id]/actions.ts`: `updateRestaurantInfo` (gestisce
+  cambio slug invalidando sia il tag vecchio che il nuovo),
+  `setRestaurantPublished`
+- `theme/actions.ts`: `publishTheme` (le mutation di draft —
+  `updateThemeDraft`, `applyPreset`, `discardDraft` — NON invalidano
+  perché toccano solo la preview, che non passa per la cache)
+- `categories/actions.ts`: helper `revalidateRestaurant` aggiornato,
+  i 4 CRUD/reorder ereditano
+- `dishes/actions.ts`: stesso pattern del helper categorie
+
+I `revalidatePath('/admin/...')` sono stati lasciati invariati: le
+pagine admin non sono dietro `unstable_cache`, quindi il meccanismo
+path-based è quello giusto per loro.
+
+**Why `updateTag` invece di `revalidateTag`**: in Next 16 la signature
+di `revalidateTag` è cambiata e ora richiede un `profile` parametro
+(`revalidateTag(tag, profile)`). Inoltre Next 16 ha introdotto
+`updateTag(tag)` con semantica **read-your-own-writes** quando chiamato
+da una server action. È esattamente quello che vogliamo: dopo un
+mutation admin, il tag viene invalidato E la prossima lettura nella
+stessa request vede il dato fresco. `revalidateTag` con profile è
+pensato per casi diversi (cache lifetime profile-based, modello nuovo).
+
+### Sub-step 2.3 — Test funzionali (5 scenari, tutti verdi)
+
+Eseguiti in dev su `npm run dev`:
+
+1. **Cache hit base**: prima request a `/best-salerno` = miss, seconda
+   = cache hit (verificato visivamente, niente query Prisma duplicate
+   nei log)
+2. **Modifica nome categoria** dal pannello admin → la pagina pubblica
+   riflette il cambio **immediatamente** (non dopo 60s)
+3. **Pubblica tema**: cambio colore + click Pubblica → il menu pubblico
+   riflette immediatamente
+4. **Update info ristorante** (tagline) → riflette immediatamente
+5. **Preview iframe** (`?previewDraft=1`) → SEMPRE fresca, anche con
+   la cache pubblica calda (passa per il branch non-cached)
+
+Build di produzione e `tsc --noEmit` puliti dopo ogni sub-step.
+
+### Decisione architetturale: `unstable_cache` vs `'use cache'`
+
+Next 16 introduce un nuovo modello di caching basato sulla direttiva
+`'use cache'` con `cacheTag()` + `cacheLife(profile)` (profili
+predefiniti `'default'`, `'minutes'`, `'hours'`, ecc., oppure custom
+`{ stale, revalidate, expire }`).
+
+Abbiamo scelto **`unstable_cache`** per Step 2 anche se è la API
+legacy. Motivazioni:
+- Funziona, è stabile in pratica, e il diff è compatto
+- Il modello a 3 dimensioni del nuovo API è overkill per il nostro
+  caso ("cache 60s, invalida on demand")
+- L'invalidazione usa già `updateTag`, che è la nuova API — quindi
+  siamo solo metà-dietro
+
+`unstable_cache` quasi sicuramente sparirà in Next 17. La migrazione
+al directive `'use cache'` è debt esplicito, vedi sotto.
+
 ## Debt esplicito (rimandato a sub-step / fasi successive)
 
+### Da Step 1 (sicurezza)
 - **CSP** — sub-step dedicato dopo Sentry/PostHog per allowlistare in
   un colpo solo. Trade-off: rischio rottura alto, beneficio incremento
   marginale rispetto alla baseline attuale.
@@ -145,32 +258,55 @@ automatizzato, è una review per ispezione del codice.
   sue route, le server actions Next.js sono protette dal framework.
   Da verificare formalmente in Fase 5.
 
+### Da Step 2 (data cache)
+- **Migrazione `unstable_cache` → `'use cache'` directive** — Next 17
+  deprecherà quasi sicuramente `unstable_cache`. Sessione dedicata,
+  da combinare con Prisma 6→7 e altri update major. Comporta anche
+  rivalutare il modello di profile vs `revalidate` semplice.
+- **Cache cross-instance su Vercel** — `unstable_cache` su Vercel è
+  per-Lambda (come il rate limit). Non è un problema di correttezza
+  (l'invalidazione via tag funziona dentro la singola Lambda) ma
+  significa che istanze diverse possono avere cache desincronizzate
+  per ~60s. In produzione lo step finale è cache distribuita
+  (Upstash Redis o Vercel Data Cache premium).
+- **API route `/api/menu/[slug]`** — non passa per la cache. Non è
+  usata dall'app stessa, quindi non è bloccante. Eventualmente
+  cachable in futuro se ci servono client esterni.
+- **Orphan media cleanup** — quando un MediaAsset usato come
+  `Restaurant.logoUrl`/`coverUrl` viene cancellato, la cache pubblica
+  resta valida ma punta a un URL 404. Già nel debt list di Fase 5
+  (vedi `STATO-FASE-2.md`).
+
+### Performance / UX (per future fasi)
+- **Warning Google Fonts preload** — il browser segnala
+  "preloaded but not used within a few seconds" sull'URL di
+  `fonts.googleapis.com/css2?family=...`. Probabile mismatch
+  `as` attribute o URL del preload diverso da quello effettivamente
+  caricato. Non bloccante. Da affrontare in Step 6 di Fase 4
+  (performance review).
+
 ## Verifica e workflow seguito (per ogni sub-step)
 
-1. Branch dedicato `feature/fase-4-security-baseline`
-2. 1 commit per sub-step
+1. Branch dedicato `feature/fase-4-...`
+2. 1 commit per sub-step (granularity per code review futura)
 3. `npx tsc --noEmit` pulito dopo ogni modifica
 4. `npm run build` pulito prima del commit
 5. Smoke test in dev (curl o pannello admin) sui flussi toccati
 6. Per gli endpoint con rate limit: test di stress via curl loop
-7. Per gli upload: test manuale da pannello admin (l'utente)
+7. Per gli upload e i flussi che richiedono auth: test manuale da
+   pannello admin (l'utente)
+8. Smoke test in prod post-deploy Vercel prima di chiudere lo step
 
-## Prossimi step di Fase 4 (dopo Step 1)
+## Prossimi step di Fase 4 (dopo Step 2)
 
-Step 1 è solo la baseline di sicurezza. Resta da fare per chiudere
-Fase 4:
-
-- **Step 2 — ISR e revalidation**: il menu pubblico oggi è
-  server-rendered on demand. Aggiungere `revalidate: 60` + on-demand
-  revalidation post-pubblicazione tema/menu (vedi spec §21.2 punto 44
-  e §17 per ISR).
 - **Step 3 — Login rate limit + altre rifiniture sicurezza** (debt
   da Step 1).
 - **Step 4 — Skeleton loader e stati di errore mancanti**.
 - **Step 5 — Audit a11y completo** (form admin, screen reader, focus
   trap esteso al di là delle modali).
 - **Step 6 — Performance review** (Core Web Vitals sul menu pubblico,
-  ottimizzazione immagini, lazy loading).
+  ottimizzazione immagini, lazy loading, **fix warning Google Fonts
+  preload**).
 
 L'ordine può cambiare in base alle priorità — questo è solo un piano
-indicativo da rivalutare a fine Step 1.
+indicativo da rivalutare step per step.

@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { requireOwnership } from '@/lib/auth-helpers';
+import { invalidateRestaurantPublic } from '@/lib/cache/restaurant';
 import {
   CoverThemeSchema,
   MenuThemeSchema,
@@ -125,8 +126,7 @@ export async function publishTheme(
       data: updateData,
     });
 
-    revalidatePath(`/${restaurant.slug}`);
-    revalidatePath(`/${restaurant.slug}/menu`);
+    invalidateRestaurantPublic(restaurant.slug);
     revalidatePath(`/admin/restaurants/${restaurantId}/theme`);
 
     return { success: true };
