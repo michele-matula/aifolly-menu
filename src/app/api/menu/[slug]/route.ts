@@ -1,10 +1,23 @@
 import { NextResponse } from 'next/server';
 import { getPublicRestaurant } from '@/lib/queries/restaurant';
+import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ slug: string }> }
 ) {
+  const ip = getClientIp(request);
+  const rate = checkRateLimit(`menu:${ip}`, 100, 60_000);
+  if (!rate.allowed) {
+    return NextResponse.json(
+      { error: 'Troppe richieste. Riprova tra qualche secondo.' },
+      {
+        status: 429,
+        headers: { 'Retry-After': Math.ceil(rate.resetInMs / 1000).toString() },
+      }
+    );
+  }
+
   const { slug } = await params;
   const restaurant = await getPublicRestaurant(slug);
 
