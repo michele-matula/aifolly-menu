@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useCallback, useActionState, useEffect } from 'react';
+import { useState, useCallback, useActionState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { toastSuccess, toastError } from '@/lib/toast';
+import { useFocusTrap } from '@/hooks/useFocusTrap';
 import {
   DndContext,
   closestCenter,
@@ -48,6 +49,9 @@ interface Props {
 // ── Modal ───────────────────────────────────────────────────
 
 function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialogRef, true);
+
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     document.addEventListener('keydown', handleEsc);
@@ -57,7 +61,7 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/30" onClick={onClose} />
-      <div className="relative bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+      <div ref={dialogRef} role="dialog" aria-modal="true" className="relative bg-white rounded-lg shadow-xl w-full max-w-md p-6">
         <h3 className="text-base font-semibold text-[#1c1917] mb-4">{title}</h3>
         {children}
       </div>

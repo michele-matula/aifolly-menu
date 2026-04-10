@@ -18,6 +18,8 @@ export default async function RestaurantInfoPage({ params }: Props) {
 
       <InfoForm
         restaurantId={restaurant.id}
+        isPublished={restaurant.isPublished}
+        slug={restaurant.slug}
         defaultValues={{
           name: restaurant.name,
           slug: restaurant.slug,

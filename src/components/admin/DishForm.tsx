@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect, useActionState } from 'react';
+import { useState, useEffect, useActionState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { DishTag, Allergen } from '@prisma/client';
 import ImageUploader from '@/components/admin/ImageUploader';
+import { useFocusTrap } from '@/hooks/useFocusTrap';
 import {
   createDish,
   updateDish,
@@ -386,32 +387,59 @@ export default function DishForm({ mode, restaurantId, categories, dish, default
 
       {/* Delete confirmation */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/30" onClick={() => setShowDeleteConfirm(false)} />
-          <div className="relative bg-white rounded-lg shadow-xl w-full max-w-sm p-6">
-            <h3 className="text-base font-semibold text-[#1c1917] mb-2">Elimina piatto</h3>
-            <p className="text-sm text-[#78716c] mb-6">
-              Sei sicuro di voler eliminare <strong>{dish?.name}</strong>? Questa azione non può essere annullata.
-            </p>
-            <div className="flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setShowDeleteConfirm(false)}
-                className="px-4 py-2 text-[13px] text-[#78716c] cursor-pointer"
-              >
-                Annulla
-              </button>
-              <button
-                type="button"
-                onClick={handleDelete}
-                className="px-4 py-2 text-[13px] font-medium text-white bg-red-500 rounded-md hover:bg-red-600 transition-colors cursor-pointer"
-              >
-                Elimina
-              </button>
-            </div>
-          </div>
-        </div>
+        <DishFormDeleteDialog
+          dishName={dish?.name ?? ''}
+          onCancel={() => setShowDeleteConfirm(false)}
+          onConfirm={handleDelete}
+        />
       )}
     </form>
+  );
+}
+
+function DishFormDeleteDialog({
+  dishName,
+  onCancel,
+  onConfirm,
+}: {
+  dishName: string;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialogRef, true);
+
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') onCancel(); };
+    document.addEventListener('keydown', handleEsc);
+    return () => document.removeEventListener('keydown', handleEsc);
+  }, [onCancel]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/30" onClick={onCancel} />
+      <div ref={dialogRef} role="dialog" aria-modal="true" className="relative bg-white rounded-lg shadow-xl w-full max-w-sm p-6">
+        <h3 className="text-base font-semibold text-[#1c1917] mb-2">Elimina piatto</h3>
+        <p className="text-sm text-[#78716c] mb-6">
+          Sei sicuro di voler eliminare <strong>{dishName}</strong>? Questa azione non può essere annullata.
+        </p>
+        <div className="flex justify-end gap-3">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="px-4 py-2 text-[13px] text-[#78716c] cursor-pointer"
+          >
+            Annulla
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            className="px-4 py-2 text-[13px] font-medium text-white bg-red-500 rounded-md hover:bg-red-600 transition-colors cursor-pointer"
+          >
+            Elimina
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

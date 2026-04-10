@@ -88,3 +88,23 @@ export async function updateRestaurantInfo(
 
   return { success: true };
 }
+
+export type PublishedActionResult = { success: boolean; error?: string };
+
+export async function setRestaurantPublished(
+  restaurantId: string,
+  isPublished: boolean,
+): Promise<PublishedActionResult> {
+  const restaurant = await requireOwnership(restaurantId);
+
+  await prisma.restaurant.update({
+    where: { id: restaurant.id },
+    data: { isPublished },
+  });
+
+  revalidatePath(`/admin/restaurants/${restaurant.id}`);
+  revalidatePath(`/${restaurant.slug}`);
+  revalidatePath(`/${restaurant.slug}/menu`);
+
+  return { success: true };
+}
