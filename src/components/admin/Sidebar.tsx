@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { signOutAction } from '@/app/admin/(dashboard)/actions';
 
 interface SidebarProps {
   userEmail: string;
@@ -53,7 +54,7 @@ export default function Sidebar({ userEmail }: SidebarProps) {
       {/* User footer */}
       <div className="px-4 py-4 border-t border-[#e7e5e4]">
         <p className="text-[12px] text-[#78716c] truncate mb-2">{userEmail}</p>
-        <form action="/api/auth/signout" method="POST">
+        <form action={signOutAction}>
           <button
             type="submit"
             className="text-[12px] text-[#a8a29e] hover:text-[#c9b97a] transition-colors cursor-pointer bg-transparent border-none p-0"
