@@ -5,7 +5,9 @@ la base di sicurezza prima di affrontare gli altri temi. Lo Step 2
 (data cache + tag invalidation) ha rimosso l'overhead DB sul menu
 pubblico mantenendo immediatezza delle modifiche admin. Lo Step 3
 (loading states + boundaries) ha chiuso i gap di skeleton/error
-boundary residui di Fase 2 Step 8.
+boundary residui di Fase 2 Step 8. Lo Step 4 (login rate limit) ha
+chiuso il debt esplicito di Step 1 rate-limitando il callback
+Credentials di NextAuth a 5 req/min per IP.
 
 ## Branch e workflow
 
@@ -123,7 +125,7 @@ automatizzato, è una review per ispezione del codice.
 | A04 | Insecure Design | ⚠️ | Decisioni chiave già prese (multi-tenant, draft visibility), nessun threat model formale |
 | A05 | Security Misconfiguration | ⚠️ | 4 header attivi, **CSP differita** |
 | A06 | Vulnerable Components | ✅ | `npm audit` 0/543, ma **nessun Dependabot/Renovate**, Prisma 6 vs 7 noto |
-| A07 | Auth Failures | ⚠️ | bcrypt + JWT OK, **no rate limit login**, no 2FA (Fase 6), no account lockout |
+| A07 | Auth Failures | ⚠️ | bcrypt + JWT OK, **rate limit login aggiunto in Step 4** (5/min per IP), no 2FA (Fase 6), no account lockout |
 | A08 | Data Integrity | ⚠️ | `package-lock.json` OK, Vercel firma i deploy, niente di più sofisticato |
 | A09 | Logging/Monitoring | ❌ | Solo Vercel function logs, no Sentry, no PostHog, no audit log — è il gap più grande, lavoro di Fase 5 |
 | A10 | SSRF | ✅ | L'app non fa fetch server-side di URL forniti dall'utente |
@@ -322,15 +324,153 @@ inline styles, no Tailwind — coerente con lo stile del cover loading.
 - Test manuale in dev: navigazione cover → menu, refresh durante load,
   apertura form dish nuovo, simulazione 404 con URL random
 
+## Step 4 — Login rate limit
+
+Obiettivo: chiudere il debt esplicito di Step 1 (login rate limit non
+implementato perché NextAuth v5 Credentials non espone hook puliti
+pre-auth) e coprire il target della spec §13.1: "5 req/min per IP".
+
+### Sub-step completati
+
+| Sub | Cosa | File chiave | Commit |
+|---|---|---|---|
+| 4.1 | Wrapper `POST` in `[...nextauth]/route.ts` che rate-limita il path `/callback/credentials` | `api/auth/[...nextauth]/route.ts` | `cb26533` |
+| 4.2 | 429 body NextAuth-client compatible + UX client specifica | `route.ts`, `login/login-form.tsx` | `d5697c1` |
+| 4.3 | Update `STATO-FASE-4.md` | `STATO-FASE-4.md` | (commit pendente) |
+
+### Threat model
+
+Oggi un attaccante può brute-forceare `POST /api/auth/callback/credentials`
+con l'unico throttle naturale di bcrypt (cost 10, ~60-80ms). In pratica
+~10-15 tentativi/s per account su un singolo thread, ~50k/h —
+sufficiente per dizionari piccoli ma non per brute force completo. Il
+rate limit a 5 req/min abbassa il tetto a 7200 tentativi/giorno/IP,
+rendendo impraticabile qualsiasi attacco seriale.
+
+### Architettura scelta: wrapper del `POST` handler
+
+NextAuth v5 espone `handlers.POST` come **unico** App Route Handler
+che dispatcha internamente tutte le sub-route (`/callback/...`,
+`/signout`, `/session`, `/csrf`, ecc.). Intercettiamo il POST prima di
+delegare, controlliamo che `request.nextUrl.pathname.endsWith(
+'/callback/credentials')`, e solo in quel caso applichiamo
+`checkRateLimit(\`login:${ip}\`, 5, 60_000)`. Tutti gli altri POST
+NextAuth passano attraverso intatti — signout, csrf, futuri callback
+OAuth.
+
+**Why NON nel callback `authorize` di NextAuth** (alternativa scartata):
+
+- `authorize` può accedere a `credentials`/`request`, ma non può
+  produrre una `NextResponse` con `status: 429` proper. Return `null`
+  = "credenziali non valide", throw = "configurazione" — in entrambi
+  i casi il client non può distinguere il 429 dal fallimento auth.
+- Dal wrapper del route handler restituiamo una 429 HTTP reale con
+  header `Retry-After`, coerente con `/api/menu/[slug]` e
+  `/api/admin/media/upload` già rate-limitati.
+- Separazione pulita: rate limit è HTTP concern, auth è credentials
+  concern.
+
+### Sub-step 4.1 — Rate limit su `/callback/credentials`
+
+Wrapper di ~25 righe in `src/app/api/auth/[...nextauth]/route.ts`.
+Usa `checkRateLimit` + `getClientIp` da `src/lib/rate-limit.ts` con
+chiave `login:${ip}`, limit 5, window 60_000 ms (spec §13.1).
+
+### Sub-step 4.2 — 429 body NextAuth-client compatible
+
+Bug latente scoperto durante la verifica: `next-auth/react` (v5) nel
+client-side `signIn()` fa **unconditionally**:
+
+```js
+const error = new URL(data.url).searchParams.get("error") ?? undefined;
+```
+
+(vedi `node_modules/next-auth/react.js:174`). Se il body della 429
+non contiene un `data.url` valido assoluto, `new URL(undefined)` lancia
+`TypeError`, il promise di `signIn` rigetta, il form resta bloccato in
+`loading=true` con l'utente a fissare uno spinner senza feedback.
+
+**Fix lato server**: il 429 ora include un `url` assoluto che punta a
+`/admin/login?error=RateLimit`, lasciando `error` come campo leggibile
+umano (ignorato da signIn ma utile a curl/chiamanti diretti).
+
+```json
+{
+  "url": "https://aifolly-menu.vercel.app/admin/login?error=RateLimit",
+  "error": "Troppi tentativi. Riprova tra qualche secondo."
+}
+```
+
+Con questo shape, `signIn()` ritorna pulito
+`{ error: 'RateLimit', code: undefined, status: 429, ok: false, url: null }`.
+
+**Fix lato client**: `login-form.tsx` branch esplicito su
+`result?.status === 429` per mostrare "Troppi tentativi. Riprova tra
+qualche secondo." invece del generico "Email o password non corretti".
+La protezione reale resta server-side, il messaggio è UX.
+
+Ho accettato di introdurre 4.2 come commit separato (non amend di 4.1)
+perché il workflow proibisce amend e perché la storia in git log
+riflette onestamente la scoperta del bug latente durante la verifica.
+
+### Parametri rate limit
+
+- `limit = 5`, `window = 60_000 ms` da spec §13.1
+- Chiave IP-only (`login:${ip}`): coerente con spec, nessun budget
+  parallelo per-email per ora
+- Nota NAT: utenti dietro lo stesso NAT condividono il budget. Per
+  AiFolly in pratica è irrilevante (pochi ristoratori)
+- Nota per-Lambda: stato in-memory, non cross-instance. Stesso trade-off
+  documentato in Step 1 sub-step 1.2. Mitigation, non enforcement forte.
+
+### Sub-step 4.3 — Update STATO-FASE-4.md
+
+Sezione Step 4 (questa), aggiornamento riga OWASP A07, rimozione del
+"login rate limit" dalla debt list di Step 1, spostamento nella lista
+"Cosa NON ho fatto in Step 4".
+
+### Cosa NON ho fatto in Step 4 (debt esplicito)
+
+- **Account lockout** (blocco persistente dopo N fallimenti per
+  email): serve storage DB (`User.failedLoginAttempts` + `lockedUntil`).
+  Più aggressivo del rate limit ma non nella spec. Sub-step futuro se
+  vediamo abuse.
+- **Email-based rate limit parallelo**: budget per-email in aggiunta
+  al budget per-IP. Richiederebbe di clonare il body della form. Non
+  nella spec §13.1.
+- **CAPTCHA progressivo** (hCaptcha/Turnstile dopo N tentativi):
+  overkill per il volume di traffico attuale, dipendenza esterna
+  aggiunta.
+- **Reset password flow**: non esiste nemmeno oggi nel prodotto
+  (onboarding CLI-manuale via `scripts/create-user.ts`). Quando verrà
+  implementato ci sarà bisogno di un rate limit dedicato (3 req/ora
+  per email, da spec §13.1).
+- **Test automatizzato del rate limit**: la verifica è stata manuale
+  via curl loop. Test automatico serve infra di setup (mock del
+  buckets Map) che non vale il costo per un singolo endpoint.
+
+### Verifica in dev
+
+Test con curl loop (script in-session, non persistente):
+
+1. `GET /api/auth/csrf` per ottenere token + cookie
+2. Loop di 6 `POST /api/auth/callback/credentials?json=true` con
+   credenziali sbagliate
+3. Attempts 1-5: HTTP 302 (fallimento auth normale)
+4. Attempt 6: HTTP 429 con header `Retry-After` e body
+   `{"url":"...?error=RateLimit","error":"Troppi tentativi..."}`
+5. `POST /api/auth/signout` subito dopo: HTTP 302, non rate-limited
+   (il path non matcha `/callback/credentials`)
+
+`tsc --noEmit` e `npm run build` puliti dopo ciascun sub-step.
+
 ## Debt esplicito (rimandato a sub-step / fasi successive)
 
 ### Da Step 1 (sicurezza)
 - **CSP** — sub-step dedicato dopo Sentry/PostHog per allowlistare in
   un colpo solo. Trade-off: rischio rottura alto, beneficio incremento
   marginale rispetto alla baseline attuale.
-- **Login rate limit** — sub-step separato. NextAuth Credentials non
-  espone hook puliti, serve wrapper custom o middleware sul POST a
-  `/api/auth/callback/credentials`.
+- ~~**Login rate limit**~~ — chiuso in Step 4.
 - **Upstash Redis per rate limit cross-instance** — quando vediamo
   abuse reale o quando vogliamo rate limit affidabile in produzione.
 - **Sentry + PostHog** — Fase 5 (sezione dedicata).
@@ -390,10 +530,8 @@ inline styles, no Tailwind — coerente con lo stile del cover loading.
    pannello admin (l'utente)
 8. Smoke test in prod post-deploy Vercel prima di chiudere lo step
 
-## Prossimi step di Fase 4 (dopo Step 3)
+## Prossimi step di Fase 4 (dopo Step 4)
 
-- **Step 4 — Login rate limit + altre rifiniture sicurezza** (debt
-  da Step 1, originalmente "Step 3" nello scaletta originale).
 - **Step 5 — Audit a11y completo** (form admin, screen reader, focus
   trap esteso al di là delle modali).
 - **Step 6 — Performance review** (Core Web Vitals sul menu pubblico,
@@ -402,7 +540,4 @@ inline styles, no Tailwind — coerente con lo stile del cover loading.
 
 L'ordine può cambiare in base alle priorità. Nota: la numerazione
 degli step segue l'ordine in cui li affrontiamo, NON l'ordine
-originale dello scaletta nello spec. Il "Step 3" che abbiamo appena
-chiuso era originariamente "Step 4" nello scaletta — abbiamo
-anticipato il polish UX rispetto al login rate limit per cambio
-di registro tra blocchi pesanti di security/caching.
+originale dello scaletta nello spec.
