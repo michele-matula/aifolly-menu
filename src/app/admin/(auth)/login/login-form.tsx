@@ -27,6 +27,11 @@ export default function LoginForm() {
 
     setLoading(false);
 
+    if (result?.status === 429) {
+      setError('Troppi tentativi. Riprova tra qualche secondo.');
+      return;
+    }
+
     if (result?.error) {
       setError('Email o password non corretti.');
       return;

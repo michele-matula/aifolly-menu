@@ -12,8 +12,19 @@ export async function POST(request: NextRequest) {
     const ip = getClientIp(request);
     const rate = checkRateLimit(`login:${ip}`, 5, 60_000);
     if (!rate.allowed) {
+      // Body shape is intentionally NextAuth-client compatible:
+      // next-auth/react's signIn() parses `data.url` with `new URL(...)`
+      // unconditionally, so a bare `{ error }` body would throw client-
+      // side and hang the login form. By providing a valid `url`, the
+      // client returns `{ error: 'RateLimit', status: 429, ok: false }`
+      // and the form can branch on `result.status === 429`.
+      const loginUrl = new URL('/admin/login', request.nextUrl.origin);
+      loginUrl.searchParams.set('error', 'RateLimit');
       return NextResponse.json(
-        { error: 'Troppi tentativi. Riprova tra qualche secondo.' },
+        {
+          url: loginUrl.toString(),
+          error: 'Troppi tentativi. Riprova tra qualche secondo.',
+        },
         {
           status: 429,
           headers: { 'Retry-After': Math.ceil(rate.resetInMs / 1000).toString() },
