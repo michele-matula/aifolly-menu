@@ -895,35 +895,36 @@ Step 6 include "verifica che Speed Insights riceva eventi".
   l'advisory e' stato scoperto "per caso" durante un install
   non-correlato.
 
-### Nota operativa: migrazione DB prod
+### Nota operativa: audit DB prod (NO-OP confermato)
 
-Step 6.3.a ha migrato solo il DB dev. **Prima del merge di Step 6 su
-main**, il DB prod va allineato altrimenti il menu pubblico in
-produzione mostrera' immagini 404 (validator strict + URL Unsplash
-in DB = thumbnail vuote) o, piu' probabilmente, rompera' il form
-admin se un owner tenta di salvare un piatto demo (imageUrl Unsplash
-rigettato dal validator 6.3.b).
+Step 6.3.a ha migrato solo il DB dev. Rischio potenziale sul merge:
+se il DB prod avesse URL non-Supabase in `Restaurant.coverUrl/logoUrl`
+o `Dish.imageUrl`, il validator 6.3.b rigetterebbe qualsiasi save del
+form admin su quei record e `next/image` rifiuterebbe il rendering.
 
-Due opzioni:
+**Esito**: il DB prod contiene un solo tenant (`best-salerno`, creato
+via pannello admin, non via seed) con 1 piatto. Audit read-only
+eseguito con `scripts/audit-prod-images.ts` puntato a prod via un
+`.env.prod.local` temporaneo (cancellato dopo l'uso):
 
-1. **Re-seed prod** (distruttivo ma semplice): puntare
-   `DATABASE_URL` al DB prod ed eseguire:
-   ```
-   npm run migrate-seed-images   # upload su Supabase prod
-   npx prisma db seed            # cancella e ricrea osteria-del-porto
-   ```
-   Sicuro solo se prod contiene esclusivamente il ristorante demo
-   `osteria-del-porto`. Se contiene anche altri ristoranti reali
-   (tenant in produzione), il re-seed NON tocca gli altri ma il
-   `deleteMany` sulle categorie del demo e' ancora safe.
-2. **UPDATE SQL mirato** (non-distruttivo): scrivere una migration
-   Prisma che aggiorna gli `imageUrl` dei piatti demo da Unsplash al
-   corrispondente Supabase URL, senza toccare altri dati. Piu'
-   lavoro, ma chirurgica.
+```
+Ristoranti totali: 1
+Piatti totali: 1 (1 con imageUrl)
 
-Raccomandazione: Opzione 1 se prod ha solo il demo, Opzione 2 se
-prod ha tenant reali. Da decidere prima del merge, con verifica
-manuale dello stato prod.
+== Restaurant cover/logo non-Supabase ==
+(nessuno — tutti i cover/logo sono su Supabase o null)
+
+== Dish imageUrl non-Supabase ==
+(nessuno — tutti gli imageUrl sono su Supabase o null)
+
+== Verdetto ==
+NO-OP: nessuna URL non-Supabase. La migrazione prod non e' necessaria.
+```
+
+Il merge di Step 6 su main e' safe senza modifiche al DB prod.
+`scripts/audit-prod-images.ts` resta committato come reference per
+audit futuri (es. prima di aggiungere nuove restrizioni simili al
+validator, o periodicamente per verificare la compliance).
 
 ### Verifica e workflow
 
