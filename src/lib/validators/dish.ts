@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { DishTag, Allergen } from '@prisma/client';
+import { SupabaseImageUrlSchema } from './url';
 
 // ── Schema Fase 1 (API pubblica) ────────────────────────────
 
@@ -38,7 +39,10 @@ export const AdminDishSchema = z.object({
   categoryId: z.string().min(1, 'Seleziona una categoria'),
   price: z.number().min(0).max(9999.99).nullable(),
   priceLabel: z.string().max(30).optional().or(z.literal('')),
-  imageUrl: z.string().max(500).optional().or(z.literal('')),
+  // Ristretto all'host Supabase (Step 6.3.b): stesso pattern di
+  // backgroundImageUrl in theme.ts, stessa motivazione (no tracking di
+  // terzi, no proxy di risorse esterne via /_next/image).
+  imageUrl: SupabaseImageUrlSchema.optional().or(z.literal('')),
   tags: z.array(z.nativeEnum(DishTag)).default([]),
   allergens: z.array(z.nativeEnum(Allergen)).default([]),
   isChefChoice: z.boolean().default(false),
