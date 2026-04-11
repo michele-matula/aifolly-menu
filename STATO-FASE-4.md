@@ -5,9 +5,11 @@ la base di sicurezza prima di affrontare gli altri temi. Lo Step 2
 (data cache + tag invalidation) ha rimosso l'overhead DB sul menu
 pubblico mantenendo immediatezza delle modifiche admin. Lo Step 3
 (loading states + boundaries) ha chiuso i gap di skeleton/error
-boundary residui di Fase 2 Step 8. Lo Step 4 (login rate limit) ha
+boundary residui di Fase 2 Step 8. Lo Step 4 (auth hardening) ha
 chiuso il debt esplicito di Step 1 rate-limitando il callback
-Credentials di NextAuth a 5 req/min per IP.
+Credentials di NextAuth a 5 req/min per IP e rifacendo il logout
+via Server Action per risolvere un bug CSRF scoperto dal smoke test
+dello step stesso (il form HTML in Sidebar lasciava la sessione viva).
 
 ## Branch e workflow
 
@@ -125,7 +127,7 @@ automatizzato, è una review per ispezione del codice.
 | A04 | Insecure Design | ⚠️ | Decisioni chiave già prese (multi-tenant, draft visibility), nessun threat model formale |
 | A05 | Security Misconfiguration | ⚠️ | 4 header attivi, **CSP differita** |
 | A06 | Vulnerable Components | ✅ | `npm audit` 0/543, ma **nessun Dependabot/Renovate**, Prisma 6 vs 7 noto |
-| A07 | Auth Failures | ⚠️ | bcrypt + JWT OK, **rate limit login aggiunto in Step 4** (5/min per IP), no 2FA (Fase 6), no account lockout |
+| A07 | Auth Failures | ⚠️ | bcrypt + JWT OK, **rate limit login aggiunto in Step 4** (5/min per IP), **logout CSRF fix in Step 4.4** (Server Action), no 2FA (Fase 6), no account lockout |
 | A08 | Data Integrity | ⚠️ | `package-lock.json` OK, Vercel firma i deploy, niente di più sofisticato |
 | A09 | Logging/Monitoring | ❌ | Solo Vercel function logs, no Sentry, no PostHog, no audit log — è il gap più grande, lavoro di Fase 5 |
 | A10 | SSRF | ✅ | L'app non fa fetch server-side di URL forniti dall'utente |
@@ -324,11 +326,15 @@ inline styles, no Tailwind — coerente con lo stile del cover loading.
 - Test manuale in dev: navigazione cover → menu, refresh durante load,
   apertura form dish nuovo, simulazione 404 con URL random
 
-## Step 4 — Login rate limit
+## Step 4 — Auth hardening (login rate limit + logout CSRF fix)
 
-Obiettivo: chiudere il debt esplicito di Step 1 (login rate limit non
-implementato perché NextAuth v5 Credentials non espone hook puliti
-pre-auth) e coprire il target della spec §13.1: "5 req/min per IP".
+Obiettivo originale: chiudere il debt esplicito di Step 1 (login rate
+limit non implementato perché NextAuth v5 Credentials non espone hook
+puliti pre-auth) e coprire il target della spec §13.1: "5 req/min per
+IP". Durante lo smoke test dello step è emerso un bug CSRF pre-esistente
+sul pulsante logout che è stato fixato nello stesso branch perché
+scoperto dalla stessa verifica e tematicamente coerente (entrambi
+riguardano hardening dell'auth surface NextAuth v5).
 
 ### Sub-step completati
 
@@ -336,7 +342,9 @@ pre-auth) e coprire il target della spec §13.1: "5 req/min per IP".
 |---|---|---|---|
 | 4.1 | Wrapper `POST` in `[...nextauth]/route.ts` che rate-limita il path `/callback/credentials` | `api/auth/[...nextauth]/route.ts` | `cb26533` |
 | 4.2 | 429 body NextAuth-client compatible + UX client specifica | `route.ts`, `login/login-form.tsx` | `d5697c1` |
-| 4.3 | Update `STATO-FASE-4.md` | `STATO-FASE-4.md` | (commit pendente) |
+| 4.3 | Update `STATO-FASE-4.md` (rate limit) | `STATO-FASE-4.md` | `cd60ae0` |
+| 4.4 | Fix logout via Server Action (MissingCSRF bug) | `admin/(dashboard)/actions.ts` (nuovo), `Sidebar.tsx` | `5b09e37` |
+| 4.5 | Update `STATO-FASE-4.md` (logout fix) | `STATO-FASE-4.md` | (commit pendente) |
 
 ### Threat model
 
@@ -423,11 +431,134 @@ riflette onestamente la scoperta del bug latente durante la verifica.
 - Nota per-Lambda: stato in-memory, non cross-instance. Stesso trade-off
   documentato in Step 1 sub-step 1.2. Mitigation, non enforcement forte.
 
-### Sub-step 4.3 — Update STATO-FASE-4.md
+### Sub-step 4.3 — Update STATO-FASE-4.md (rate limit)
 
 Sezione Step 4 (questa), aggiornamento riga OWASP A07, rimozione del
 "login rate limit" dalla debt list di Step 1, spostamento nella lista
 "Cosa NON ho fatto in Step 4".
+
+### Sub-step 4.4 — Logout via Server Action (fix MissingCSRF)
+
+**Discovery**: durante lo smoke test post-4.3 ho chiesto all'utente di
+verificare il flusso completo login → logout → re-login. Al click su
+"Esci" l'utente veniva redirect a `/admin/login?error=MissingCSRF`.
+Investigato via lettura del codice NextAuth core + riproduzione con
+curl sul cookie jar reale.
+
+**Root cause**: il form in `src/components/admin/Sidebar.tsx:56` era
+scritto così dai tempi di Fase 2 Step 2 (commit `1c171d4`, 8 aprile):
+
+```tsx
+<form action="/api/auth/signout" method="POST">
+  <button type="submit">Esci</button>
+</form>
+```
+
+Puro HTML, nessun campo `csrfToken` nel body. NextAuth v5 enforce
+double-submit-cookie CSRF su tutti i POST state-changing (non solo su
+`/callback/credentials`): la catena è `AuthInternal` →
+`createCSRFToken` → verifica `cookie.token === body.csrfToken` →
+fail → `validateCSRF("signout", false)` → throw `MissingCSRF` →
+redirect a `pages.signIn` con `?error=MissingCSRF`. Crucialmente il
+throw avviene **prima** di `actions.signOut`, quindi `authjs.session-
+token` non viene mai cancellato. Il pulsante logout era decorativo: il
+browser atterrava sulla pagina di login ma la sessione restava viva.
+Chiunque ricaricasse `/admin` dopo il "logout" ritrovava la sessione
+attiva.
+
+Classe di bug: security logout CSRF. Non è un data breach remoto ma
+è una vulnerabilità funzionale reale (accesso fisico al browser dopo
+un "logout" apparente → sessione ancora valida).
+
+**Perché non è stato notato prima**: il pulsante logout non è mai
+stato testato nel browser prima di questo smoke test. Fase 2 Step 2
+aveva test dei form admin ma non del logout. Il rodaggio Fase 3
+(`STATO-RODAGGIO.md`) non aveva logout come test case. In dev si tende
+a killare il processo invece di cliccare "Esci".
+
+**Soluzione scelta: Server Action**
+
+Nuovo file `src/app/admin/(dashboard)/actions.ts`:
+
+```ts
+'use server';
+import { signOut } from '@/lib/auth';
+
+export async function signOutAction() {
+  await signOut({ redirectTo: '/admin/login' });
+}
+```
+
+E `Sidebar.tsx` ora ha `<form action={signOutAction}>` invece della
+stringa URL.
+
+**Perché Server Action e non `signOut` da `next-auth/react`**
+(alternativa A scartata):
+
+- `next-auth/react` signOut() fa `getCsrfToken()` + `POST
+  /api/auth/signout` — due roundtrip, richiede JavaScript, passa
+  ancora per il route HTTP che è stato wrappato dal rate limiter
+  di Step 4.1. Workaround ingegneristico che sostituisce un form
+  rotto con una chiamata fetch invece di risolvere il problema alla
+  radice.
+- La Server Action bypassa completamente `/api/auth/signout`. Chiama
+  direttamente `signOut()` server-side dall'istanza NextAuth, che
+  invalida il JWT, cancella il cookie di sessione, e gestisce la
+  redirect via `redirectTo`. Zero roundtrip per CSRF fetch, zero
+  JSON marshalling, zero URL handling.
+
+**Perché Server Action e non hidden input csrfToken** (alternativa B
+scartata):
+
+- Richiederebbe di leggere `cookies()` in un Server Component,
+  parsare il cookie `authjs.csrf-token` nel formato `token|hash`,
+  iniettare il token grezzo come hidden input. Tutto basato su
+  internals NextAuth non garantiti stabili tra minor version.
+- E se l'utente arriva su `/admin` senza aver mai hit `/api/auth/csrf`
+  prima, il cookie non esiste — dovremmo forzare la generazione lato
+  server. Fragile.
+
+**Perché Server Action è strutturalmente corretta**:
+
+1. **CSRF protection framework-level**: Next.js 16 firma gli action
+   ID con il server secret, check `Origin`/`Host` header, encoding
+   opaco dell'endpoint. Un sito cross-origin non può forgiare la
+   chiamata. Più robusto del double-submit-cookie manuale.
+2. **Progressive enhancement**: il form funziona anche con JS
+   disabilitato. Next.js dispatcha la form submission al server via
+   POST standard. Nessuna perdita di funzionalità.
+3. **Un roundtrip**. NextAuth client signOut() fa due. Server Action
+   fa uno.
+4. **Type-safe**. L'import di `signOutAction` è tipato; cambiamenti
+   futuri alla signature triggererebbero errori di compilazione.
+5. **Pattern ufficiale NextAuth v5**. La [doc upstream](https://authjs.dev)
+   mostra esattamente questo pattern come raccomandato.
+6. **Coerente con il resto del codebase**. Admin usa già Server
+   Actions per `restaurants/[id]/actions.ts`,
+   `categories/actions.ts`, `dishes/actions.ts`, `theme/actions.ts`.
+   Il logout diventa cittadino di prima classe dello stesso sistema.
+
+**Location del file**: `src/app/admin/(dashboard)/actions.ts` perché
+la Sidebar è renderizzata solo dentro il layout `(dashboard)`,
+co-locato con il consumatore unico. Non lo metto in `src/lib/` perché
+non è una utility generica — è l'action di una pagina specifica.
+
+**Verifica** (smoke test in dev completato dall'utente):
+
+1. Hard refresh su `/admin/login`
+2. Login ok con credenziali demo → redirect a `/admin`
+3. Click "Esci" → redirect a `/admin/login` **senza** `?error=MissingCSRF`
+4. Cookie `authjs.session-token` rimosso da DevTools
+5. Visita diretta a `/admin` → proxy middleware rimanda a `/admin/login`
+6. Re-login → entra normalmente
+
+`npx tsc --noEmit` e `npm run build` puliti post-modifica.
+
+### Sub-step 4.5 — Update STATO-FASE-4.md (logout fix)
+
+Questa sezione + rinomina dello step a "Auth hardening" + aggiornamento
+della riga OWASP A07 (il logout rotto era un gap di auth management,
+ora chiuso).
 
 ### Cosa NON ho fatto in Step 4 (debt esplicito)
 
