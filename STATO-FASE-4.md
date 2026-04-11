@@ -10,6 +10,16 @@ chiuso il debt esplicito di Step 1 rate-limitando il callback
 Credentials di NextAuth a 5 req/min per IP e rifacendo il logout
 via Server Action per risolvere un bug CSRF scoperto dal smoke test
 dello step stesso (il form HTML in Sidebar lasciava la sessione viva).
+Lo Step 6 (performance review) ha chiuso il warning Google Fonts
+preload iniettando i font del tema server-side, ottimizzato le
+immagini del menu pubblico con next/image + AVIF/WebP, e introdotto
+Speed Insights per baseline metrics. Durante lo step sono emersi due
+gap pre-esistenti che sono stati chiusi contestualmente: un advisory
+DoS Next.js (patch bump 16.2.3) e un validator imageUrl del piatto
+che accettava URL arbitrari (hardening analogo a 1.3.d). Nota: la
+numerazione degli step riflette l'ordine di esecuzione, non l'ordine
+della scaletta originale nello spec — Step 5 (audit a11y) e' l'ultimo
+rimasto di Fase 4.
 
 ## Branch e workflow
 
@@ -123,10 +133,10 @@ automatizzato, è una review per ispezione del codice.
 |---|---|---|---|
 | A01 | Broken Access Control | ✅ | `proxy.ts` su `/admin/:path*`, ownership check su tutte le API admin via `restaurant.ownerId === session.user.id` |
 | A02 | Cryptographic Failures | ✅ | bcryptjs, JWT NextAuth, HTTPS Vercel, **HSTS aggiunto in 1.1**, secrets in env |
-| A03 | Injection | ✅ | Prisma parametrizzata, React escape default, 0 `dangerouslySetInnerHTML`, 0 `child_process`, HEX colori validati Zod, **font whitelist aggiunta in 1.3.c** |
+| A03 | Injection | ✅ | Prisma parametrizzata, React escape default, 0 `dangerouslySetInnerHTML`, 0 `child_process`, HEX colori validati Zod, **font whitelist aggiunta in 1.3.c**, **dish.imageUrl ristretto a host Supabase in Step 6.3.b** |
 | A04 | Insecure Design | ⚠️ | Decisioni chiave già prese (multi-tenant, draft visibility), nessun threat model formale |
 | A05 | Security Misconfiguration | ⚠️ | 4 header attivi, **CSP differita** |
-| A06 | Vulnerable Components | ✅ | `npm audit` 0/543, ma **nessun Dependabot/Renovate**, Prisma 6 vs 7 noto |
+| A06 | Vulnerable Components | ✅ | `npm audit` 0/450 post-bump, **Next 16.2.3 patch** (GHSA-q4gf-8mx6-v5v3, Step 6.4), ma **nessun Dependabot/Renovate**, Prisma 6 vs 7 noto |
 | A07 | Auth Failures | ⚠️ | bcrypt + JWT OK, **rate limit login aggiunto in Step 4** (5/min per IP), **logout CSRF fix in Step 4.4** (Server Action), no 2FA (Fase 6), no account lockout |
 | A08 | Data Integrity | ⚠️ | `package-lock.json` OK, Vercel firma i deploy, niente di più sofisticato |
 | A09 | Logging/Monitoring | ❌ | Solo Vercel function logs, no Sentry, no PostHog, no audit log — è il gap più grande, lavoro di Fase 5 |
@@ -595,6 +605,340 @@ Test con curl loop (script in-session, non persistente):
 
 `tsc --noEmit` e `npm run build` puliti dopo ciascun sub-step.
 
+## Step 6 — Performance review
+
+Obiettivo: ottimizzare il percorso del visitatore finale (cover +
+menu pubblico) sotto tre assi — font loading, immagini, baseline
+metrics — e chiudere il warning "preloaded but not used" emerso in
+Step 3. Durante l'esecuzione sono emersi due gap pre-esistenti che
+sono stati chiusi contestualmente perche' bloccanti o tematicamente
+coerenti: un validator `imageUrl` del piatto non ristretto e un
+advisory DoS Next.js scoperto all'install di `@vercel/speed-insights`.
+
+### Sub-step completati
+
+| Sub | Cosa | File chiave | Commit |
+|---|---|---|---|
+| 6.1 | Font loading strutturale server-side | `MenuFonts.tsx` (nuovo), `ThemeProvider.tsx`, `(menu)/[slug]/page.tsx`, `(menu)/[slug]/menu/page.tsx`, `error.tsx`, `not-found.tsx` | `89547d4` |
+| 6.2 | `next.config.ts` images remotePatterns + AVIF/WebP | `next.config.ts` | `d8d941f` |
+| 6.3.a | Migrazione seed Unsplash → Supabase Storage | `scripts/migrate-seed-images.ts` (nuovo), `prisma/seed.ts`, `package.json` | `0b53382` |
+| 6.3.b | Hardening `dish.imageUrl` a host Supabase | `validators/url.ts` (nuovo), `validators/theme.ts`, `validators/dish.ts` | `cc9fb9e` |
+| 6.3.c | Swap `<img>` → `<Image>` in cover e dish card | `CoverPage.tsx`, `DishCard.tsx` | `68e1e1e` |
+| 6.4 | Patch bump Next 16.2.2 → 16.2.3 (security DoS) | `package.json`, `package-lock.json` | `fdd321b` |
+| 6.5 | Vercel Speed Insights nel layout menu | `(menu)/layout.tsx`, `package.json` | `485a32d` |
+| 6.6 | Update STATO-FASE-4.md | `STATO-FASE-4.md` | (commit pendente) |
+
+### Audit pre-step
+
+Prima di toccare codice ho eseguito un audit su 7 aree del menu
+pubblico (Google Fonts, immagini, strategia loading, bundle JS,
+public assets, route config, Web Vitals). Findings rilevanti:
+
+- **Google Fonts**: doppio path di caricamento. `ThemeProvider`
+  client-side iniettava un `<link>` via `useEffect` (causando FOUT).
+  `(menu)/[slug]/error.tsx` e `not-found.tsx` avevano un `<link>`
+  hardcoded a Cormorant+Outfit — sorgente confermata del warning
+  "preloaded but not used" segnalato in Step 3.
+- **Immagini**: zero `next/image`. Tag `<img>` grezzi in `CoverPage`
+  (logo + hero) e `DishCard` (thumbnail). Nessun `priority`, nessun
+  `sizes`, nessun lazy esplicito, `next.config.ts` senza
+  `remotePatterns`. Il hero cover e' LCP della pagina pubblica e
+  restava non ottimizzato.
+- **Bundle JS**: pulito. 6 client component, zero librerie di
+  animazione/UI pesanti, solo React hooks + IntersectionObserver
+  nativo. Nessun intervento necessario.
+- **Web Vitals**: nessuna misurazione attiva. `@vercel/speed-insights`
+  non installato, `web-vitals` non in `package.json`.
+
+### Sub-step 6.1 — Font loading strutturale server-side
+
+**Problema**: `ThemeProvider.tsx` era un client component che, in un
+`useEffect`, creava un `<link rel="stylesheet">` puntando a Google
+Fonts e lo appendeva a `document.head`. Doppio costo:
+
+1. **FOUT**: il font del tema viene applicato solo dopo hydration,
+   quindi il primo paint usa il system font, poi c'e' un flash quando
+   il font custom arriva. Visibile soprattutto su connessioni lente.
+2. **No preload**: il browser non puo' preloadare il font prima di
+   aver eseguito JS, quindi perdiamo 100-300ms di parallelismo.
+
+**Fix strutturale**: estratto `<MenuFonts/>` come server component
+che:
+
+- Colleziona le 9 famiglie di font dal `FullTheme` (cover 3, menu 2,
+  dish 4), dedupando
+- Emette `<link rel="preconnect">` per `fonts.googleapis.com` e
+  `fonts.gstatic.com`
+- Emette `<link rel="stylesheet" precedence="default">` con tutte le
+  families in un'unica request
+
+React 19 **hoista** automaticamente i `<link>` nel `<head>` e dedupa
+su `precedence` tra route. `ThemeProvider` diventa un server component
+semplificato che applica solo le CSS vars sul wrapper div — via
+`'use client'` e `useEffect`.
+
+**Perche' server component** (alternativa client scartata): il layout
+e le due page sono gia' server-side, hanno accesso al `slug` e al
+`theme` via data fetch. Non c'e' motivo di deferire la decisione dei
+font al runtime client. Il server sa esattamente quali font servono.
+
+**Perche' non un layout condiviso `(menu)/[slug]/layout.tsx`**
+(alternativa scartata): un layout non riceve `searchParams`, quindi
+non puo' distinguere il branch `previewDraft=1` (owner autenticato
+che vede il draft del tema) dal pubblico. Preferisco duplicare
+`<MenuFonts theme={theme}/>` nelle due page (cover + menu) che
+gestiscono gia' il draft handling nel proprio flow. La duplicazione
+e' due righe — accettabile.
+
+**`error.tsx` e `not-found.tsx`**: i `<link>` hardcoded a Cormorant+
+Outfit sono stati rimossi. Motivazione: su una 404 non c'e' modo di
+sapere quale tenant mostrare (lo slug non esiste), quindi non posso
+caricare i font del tema. Su un error boundary, lo slug esiste ma il
+dato potrebbe essere corrotto. In entrambi i casi, system font stack
+(`Georgia, "Times New Roman", serif` per i titoli; `system-ui,
+-apple-system, "Segoe UI", sans-serif` per il resto) e' la scelta
+strutturalmente corretta. Trade-off accettabile: questi boundary
+sono rari, il polish font non e' critico.
+
+### Sub-step 6.2 — next.config.ts images remotePatterns
+
+Propedeutico a 6.3.c: senza `images.remotePatterns`, `next/image`
+rifiuta qualsiasi URL non allowlist-ato con errore "hostname
+unconfigured".
+
+- **`formats: ['image/avif', 'image/webp']`**: il browser negozia via
+  `Accept` header. AVIF e' ~30-50% piu' piccolo di JPEG, WebP e'
+  fallback per browser vecchi.
+- **`hostname` derivato da `NEXT_PUBLIC_SUPABASE_URL`**: stesso
+  pattern di 1.3.d (`backgroundImageUrl`), stesso motivo — dev e prod
+  condividono la config senza hardcodare il project ref. Fail-closed:
+  se l'env manca, il build tira throw (no allowlist silenzioso).
+- **`pathname: '/storage/v1/object/public/**'`**: restringe alle sole
+  risorse pubbliche. I signed URL temporanei (che il progetto non
+  usa) verrebbero rifiutati. Se in futuro si aggiungono, si allarga
+  il pattern.
+
+`minimumCacheTTL` non toccato (default 60s). Alzarlo ha senso solo
+se avessimo un alto volume di traffico, il che non e' il caso attuale.
+
+### Sub-step 6.3 — Image optimization (a/b/c)
+
+Originariamente uno step unico. Durante l'implementazione e' emerso
+che il seed del DB dev usava 23 URL Unsplash hardcoded per le
+immagini demo (`prisma/seed.ts`). `next/image` le rifiutava al
+runtime (`images.unsplash.com` non in `remotePatterns`). Inoltre il
+validator `dish.ts:41` era `z.string().max(500).optional()` — nessuna
+restrizione di host, un owner poteva inserire URL arbitrari. Questo
+era un gap di sicurezza pre-esistente, analogo a quello chiuso in
+1.3.d per `backgroundImageUrl`, ma dimenticato per `imageUrl`.
+
+Il sub-step e' stato spezzato in tre commit in ordine strutturale:
+prima la migrazione dei dati (altrimenti il validator strict rompe
+il form admin esistente), poi il validator, poi lo swap. Ogni commit
+ha senso autonomo e puo' essere rollback-ato indipendentemente.
+
+**6.3.a — Migrazione seed Unsplash → Supabase Storage**: creato
+`scripts/migrate-seed-images.ts` (one-shot, committato come
+reference). Lo script:
+
+1. Inventario hardcoded di 23 URL (22 piatti + 1 cover ristorante)
+   con target filename deterministico (slug del piatto)
+2. Per ciascuno: `fetch` da Unsplash → upload su bucket
+   `restaurant-media` sotto prefix `demo-seed/` via service role key
+3. `upsert: true` per idempotenza (lo script e' ri-eseguibile)
+4. Stampa un manifest `{ oldUrl → newUrl }` da applicare a `seed.ts`
+
+Delle 23 URL, **22 sono state migrate**. Una (`pure-di-fave`,
+`photo-1543339308-...`) ha risposto 404 perche' Unsplash ha rimosso
+l'immagine. Per quel piatto ho impostato `imageUrl: null` con un
+commento che documenta il 404. Il `DishCard` gestisce gia' il caso
+senza thumbnail.
+
+Dopo la migrazione, `prisma/seed.ts` ha solo URL Supabase. Re-seed
+del DB dev con `npx prisma db seed` (6 categorie, 29 piatti).
+
+**Prod NON toccata in 6.3.a**: il DB prod ha il suo stato indipendente,
+la migrazione verra' eseguita come nota operativa prima del merge di
+Step 6 (vedi sezione "Nota operativa: migrazione DB prod" a fine di
+questo step).
+
+**Prefix `demo-seed/` dedicato**: separato dai path
+`{restaurantId}/{kind}/{timestamp}-{random}-{filename}` usati dagli
+upload reali degli owner. Non interferisce con la convenzione
+esistente.
+
+**6.3.b — Hardening validator `imageUrl`**: estratto
+`SupabaseImageUrlSchema` da `theme.ts` (dove era inline in 1.3.d) a
+un nuovo file `validators/url.ts`, condiviso tra `theme.ts` (per
+`backgroundImageUrl`) e `dish.ts` (per `imageUrl`). Re-export da
+`theme.ts` per backcompat con i call site esistenti.
+
+`dish.ts:imageUrl` diventa
+`SupabaseImageUrlSchema.optional().or(z.literal(''))` — accetta URL
+Supabase, omissione, o stringa vuota (= nessuna immagine, semantica
+esistente del form). Rifiuta tutto il resto.
+
+Verificato con unit test inline via tsx, 6 casi: URL Supabase valido
+(ok), URL Unsplash (rifiutato), URL evil.com (rifiutato), stringa
+vuota (ok), undefined (ok), URL malformato (rifiutato). Tutti pass.
+
+**Perche' extract in `url.ts` e non import da `theme.ts`** (più
+pragmatico): `SupabaseImageUrlSchema` non e' theme-specifica — e'
+una constraint cross-cutting sugli URL di immagine del progetto.
+Importare il validator del dish da `theme.ts` sarebbe asimmetrico
+(dish e' concettualmente piu' semplice del theme). Estratto in un
+file dedicato di 15 righe, importato da entrambi. L'aggiunta di un
+file e' accettabile per la chiarezza del namespace.
+
+**6.3.c — Swap `<img>` → `<Image>` in `CoverPage` e `DishCard`**:
+
+- **Cover hero**: `<Image fill priority sizes="(max-width: 480px)
+  100vw, 480px">`. E' l'LCP del menu pubblico, `priority` dice al
+  browser di preloadarla via `<link rel="preload" as="image">`
+  nell'`<head>`.
+- **Dish thumbnail**: `<Image fill sizes="128px">`. Lazy di default
+  (sotto la fold). `128px` copre il range della CSS var
+  `--card-image-size` (96-128 nei preset).
+- **Cover logo**: `<Image width={200} height={200} style={{ width:
+  'auto', height: 'auto', maxHeight: 'var(--cover-logo-max-height)',
+  maxWidth: 200, objectFit: 'contain' }}>`. Il logo e' uploadato
+  dall'owner, aspect ratio sconosciuta. `width`/`height` sono solo
+  hint per il loader; CSS constraints + auto gestiscono il rendering
+  finale. Accettato un piccolo rischio di pop-in di dimensione al
+  caricamento (non visto nei test).
+
+Rimosso il workaround `imgRef.current?.complete` nei due componenti:
+`next/image` gestisce gia' il caso "immagine in cache del browser"
+chiamando `onLoad` durante l'hydration. Il fallback manuale era per
+i `<img>` grezzi, ora obsoleto.
+
+Fade-in on-load (`opacity: imgLoaded ? 1 : 0` + transition) e filtri
+visivi (`saturate(...) contrast(...)`) mantenuti invariati. Le
+animazioni visive sono preservate pixel-perfect.
+
+### Sub-step 6.4 — Patch bump Next 16.2.2 → 16.2.3 (security)
+
+**Scoperta**: durante `npm install @vercel/speed-insights` (per 6.5)
+npm ha segnalato `1 high severity vulnerability`. `npm audit` ha
+rivelato che NON era del nuovo pacchetto ma di `next` stesso:
+advisory **GHSA-q4gf-8mx6-v5v3** (DoS con Server Components in
+16.0.0-beta.0..16.2.2). Il fix e' `next@16.2.3`. Step 1.3.a aveva
+fatto `npm audit` con 0/543, quindi l'advisory e' emerso nel
+frattempo.
+
+**Commit atomico**: bump isolato dal feature work, per facilitare
+rollback in caso di regressione. Durante il bump ho disinstallato
+temporaneamente `@vercel/speed-insights` (aggiunto per errore prima
+di scoprire l'advisory) per tenere il diff pulito, poi l'ho
+reinstallato in 6.5.
+
+**Pinning esatto**: il progetto pinna `next` e `eslint-config-next`
+senza caret (stile reproducibility). `npm install pkg@version`
+avrebbe usato caret by default, quindi ho usato `--save-exact` per
+entrambi. Post-bump: `npm audit` pulito (0/449).
+
+**Smoke test completo** (menu pubblico, login admin, form edit piatto,
+logout): nessuna regressione. Un patch bump da 16.2.2 a 16.2.3
+dovrebbe essere sostanzialmente no-op funzionale, e cosi' e' stato.
+
+### Sub-step 6.5 — Vercel Speed Insights
+
+Montato `<SpeedInsights/>` da `@vercel/speed-insights/next` nel
+layout `(menu)`. Una riga di import + una riga di component.
+
+**Perche' solo nel layout (menu) e non nell'admin**: interessa
+misurare il percorso del visitatore finale — cover + menu — non i
+form admin che hanno obiettivi di performance diversi (form-centric,
+token `time to interactive` vs LCP). Mescolare i sample nello stesso
+dashboard diluisce il segnale.
+
+**Perche' ora e non Fase 5 insieme a Sentry/PostHog**: chiudere Step
+6 ("performance review") senza misurazione era monco. Inoltre,
+installando Speed Insights prima del deploy di 6.1/6.3.c raccolgo
+una baseline che poi posso confrontare con le metriche post-deploy
+per quantificare il delta LCP/CLS/INP dei sub-step precedenti.
+
+In dev il component non invia metrics reali (debug mode). Le vere
+metriche arriveranno dopo il merge + deploy Vercel, visibili nel tab
+**Speed Insights** del dashboard progetto. Il smoke test di prod di
+Step 6 include "verifica che Speed Insights riceva eventi".
+
+### Cosa NON ho fatto in Step 6 (debt esplicito)
+
+- **Migrazione seed per Puré di Fave**: la foto Unsplash originale e'
+  404. Per ora `imageUrl: null`. Opzioni future: cercare una foto
+  alternativa, oppure commissionare uno shoot. Non bloccante.
+- **`minimumCacheTTL` custom** su `next.config.ts images`: lasciato
+  al default (60s). Alzarlo serve solo con alto volume di traffico.
+- **Refactor `theme/loading.tsx`** da skeleton generico a
+  content-shaped (era gia' in debt da Step 3): invariato.
+- **CSP** (era in debt da Step 1): invariato. Ora con Speed Insights
+  monteremo un endpoint aggiuntivo da allowlistare, rendendo CSP
+  leggermente piu' complicata. Rimane Fase 5/6.
+- **`<link rel="modulepreload">` per chunk critici del menu**:
+  Next 16 li aggiunge gia' automaticamente. Verificato sul build
+  output, nessun intervento necessario.
+- **Image blur placeholder** (`placeholder="blur"` su `<Image>`): non
+  applicabile — richiederebbe un blur hash pre-calcolato per ogni
+  immagine uploadata, infrastruttura di trasformazione assente. Il
+  fade-in on-load da `opacity:0` copre l'esigenza visiva con costo
+  di implementazione zero.
+- **Test automatizzato del validator `imageUrl`** (6.3.b): verificato
+  via unit test inline eseguito una volta, non persistito. Stesso
+  pattern del test rate-limit di Step 4 — il costo di una test suite
+  dedicata non e' giustificato per un singolo validator. Il test
+  sara' ripreso quando Fase 5 introdurra' una test infrastructure
+  generale.
+- **Dependabot/Renovate** per intercettare advisories come
+  GHSA-q4gf-8mx6-v5v3 automaticamente: ancora debt di Fase 5. Step 6.4
+  ha evidenziato che il monitoraggio manuale e' insufficiente —
+  l'advisory e' stato scoperto "per caso" durante un install
+  non-correlato.
+
+### Nota operativa: audit DB prod (NO-OP confermato)
+
+Step 6.3.a ha migrato solo il DB dev. Rischio potenziale sul merge:
+se il DB prod avesse URL non-Supabase in `Restaurant.coverUrl/logoUrl`
+o `Dish.imageUrl`, il validator 6.3.b rigetterebbe qualsiasi save del
+form admin su quei record e `next/image` rifiuterebbe il rendering.
+
+**Esito**: il DB prod contiene un solo tenant (`best-salerno`, creato
+via pannello admin, non via seed) con 1 piatto. Audit read-only
+eseguito con `scripts/audit-prod-images.ts` puntato a prod via un
+`.env.prod.local` temporaneo (cancellato dopo l'uso):
+
+```
+Ristoranti totali: 1
+Piatti totali: 1 (1 con imageUrl)
+
+== Restaurant cover/logo non-Supabase ==
+(nessuno — tutti i cover/logo sono su Supabase o null)
+
+== Dish imageUrl non-Supabase ==
+(nessuno — tutti gli imageUrl sono su Supabase o null)
+
+== Verdetto ==
+NO-OP: nessuna URL non-Supabase. La migrazione prod non e' necessaria.
+```
+
+Il merge di Step 6 su main e' safe senza modifiche al DB prod.
+`scripts/audit-prod-images.ts` resta committato come reference per
+audit futuri (es. prima di aggiungere nuove restrizioni simili al
+validator, o periodicamente per verificare la compliance).
+
+### Verifica e workflow
+
+- Branch dedicato `feature/fase-4-step-6-performance`
+- 8 commit (1 per sub-step, rispettando la granularita' per code
+  review futura; 6.3 spezzato in a/b/c per isolare il re-seed dal
+  validator dallo swap)
+- `tsc --noEmit` + `npm run build` puliti dopo ogni commit
+- Smoke test in dev su: cover, menu, 404, error boundary, form admin
+  edit piatto, login/logout, Speed Insights script load
+- Per 6.3.b: unit test inline del validator con 6 casi (tutti pass)
+- Push su main post-approvazione, smoke test in prod post-deploy
+  Vercel, verifica dashboard Speed Insights per i primi eventi
+
 ## Debt esplicito (rimandato a sub-step / fasi successive)
 
 ### Da Step 1 (sicurezza)
@@ -635,19 +979,31 @@ Test con curl loop (script in-session, non persistente):
   (vedi `STATO-FASE-2.md`).
 
 ### Performance / UX (per future fasi)
-- **Warning Google Fonts preload** — il browser segnala
-  "preloaded but not used within a few seconds" sull'URL di
-  `fonts.googleapis.com/css2?family=...`. Probabile mismatch
-  `as` attribute o URL del preload diverso da quello effettivamente
-  caricato. **Indizio scoperto in Step 3**: i file
-  `(menu)/[slug]/error.tsx` e `not-found.tsx` includono inline un
-  `<link>` con la stessa URL Google Fonts — potrebbe essere la
-  sorgente del preload non usato. Da verificare e fixare in
-  Step 6 (performance review).
+- ~~**Warning Google Fonts preload**~~ — chiuso in Step 6.1
+  (font iniettati server-side via `<MenuFonts/>`, hardcoded rimossi
+  da error/not-found).
 - **Refactor `theme/loading.tsx`** da generico a content-shaped:
   funziona ma è meno polish degli altri loading. Non bloccante.
 - **`<DishFormSkeleton />` componente condiviso**: solo se nasce un
   terzo call site oltre a `dishes/new` e `dishes/[dishId]/edit`.
+
+### Da Step 6 (performance)
+- **Foto sostitutiva per Puré di Fave**: la foto Unsplash originale
+  ha risposto 404 durante la migrazione 6.3.a, il piatto e' rimasto
+  con `imageUrl: null`. Trovare una foto sostitutiva o commissionare
+  uno shoot. Non bloccante.
+- **Migrazione DB prod** — da eseguire prima del merge di Step 6 su
+  main. Vedi "Nota operativa" in fondo a Step 6 per le due opzioni.
+- **Dependabot/Renovate** — rimarcato anche qui: 6.4 ha chiuso un
+  advisory scoperto per caso durante un install non-correlato. Il
+  monitoraggio manuale e' insufficiente, serve automazione. Fase 5.
+- **Image blur placeholder** (`placeholder="blur"` su `<Image>`):
+  richiederebbe un blur hash pre-calcolato per ogni immagine
+  uploadata, infrastruttura di trasformazione assente. Il fade-in
+  on-load copre l'esigenza visiva.
+- **Cleanup SVG template in `public/`** (`file.svg`, `globe.svg`,
+  `next.svg`, `vercel.svg`, `window.svg`): boilerplate non usato.
+  Cleanup generico, non performance-related.
 
 ## Verifica e workflow seguito (per ogni sub-step)
 
@@ -661,14 +1017,15 @@ Test con curl loop (script in-session, non persistente):
    pannello admin (l'utente)
 8. Smoke test in prod post-deploy Vercel prima di chiudere lo step
 
-## Prossimi step di Fase 4 (dopo Step 4)
+## Prossimi step di Fase 4 (dopo Step 6)
 
 - **Step 5 — Audit a11y completo** (form admin, screen reader, focus
-  trap esteso al di là delle modali).
-- **Step 6 — Performance review** (Core Web Vitals sul menu pubblico,
-  ottimizzazione immagini, lazy loading, **fix warning Google Fonts
-  preload**).
+  trap esteso al di là delle modali, audit a11y dei boundary residui
+  di Step 3 — focus management, annunci dello stato di loading).
 
-L'ordine può cambiare in base alle priorità. Nota: la numerazione
-degli step segue l'ordine in cui li affrontiamo, NON l'ordine
-originale dello scaletta nello spec.
+Con Step 5 si chiude Fase 4. Nota: la numerazione degli step segue
+l'ordine in cui li abbiamo affrontati (1 → 2 → 3 → 4 → 6 → 5), NON
+l'ordine originale della scaletta nello spec. Step 6 e' stato
+anticipato rispetto a Step 5 perche' il warning Google Fonts era
+un filo gia' mezzo tirato da Step 3 e valeva la pena chiuderlo col
+contesto fresco.

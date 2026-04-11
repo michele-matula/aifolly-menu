@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import type { CoverTheme } from '@/lib/validators/theme';
 
 interface CoverPageProps {
@@ -21,17 +22,9 @@ interface CoverPageProps {
 export default function CoverPage({ restaurant, theme }: CoverPageProps) {
   const [loaded, setLoaded] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);
-  const imgRef = useRef<HTMLImageElement>(null);
 
   useEffect(() => {
     setTimeout(() => setLoaded(true), 100);
-  }, []);
-
-  // Handle image already loaded before hydration
-  useEffect(() => {
-    if (imgRef.current?.complete && imgRef.current.naturalWidth > 0) {
-      setImgLoaded(true);
-    }
   }, []);
 
   return (
@@ -152,10 +145,17 @@ export default function CoverPage({ restaurant, theme }: CoverPageProps) {
         {/* Logo */}
         {theme.showLogo && restaurant.logoUrl && (
           <div className="cover-fade-2" style={{ marginBottom: 18 }}>
-            <img
+            {/* width/height sono solo hint per aspect ratio; CSS constraints
+                + auto gestiscono le dimensioni reali a runtime (il logo e'
+                caricato dall'owner, aspect ratio sconosciuto). */}
+            <Image
               src={restaurant.logoUrl}
               alt={restaurant.name}
+              width={200}
+              height={200}
               style={{
+                width: 'auto',
+                height: 'auto',
                 maxHeight: 'var(--cover-logo-max-height)',
                 maxWidth: 200,
                 objectFit: 'contain',
@@ -260,18 +260,17 @@ export default function CoverPage({ restaurant, theme }: CoverPageProps) {
           overflow: 'hidden',
         }}
       >
-        {/* Cover photo */}
+        {/* Cover photo — LCP della pagina pubblica, priority per evitare
+            lazy loading e preload via <link rel="preload"> dal <head>. */}
         {restaurant.coverUrl && (
-          <img
-            ref={imgRef}
+          <Image
             src={restaurant.coverUrl}
             alt={`${restaurant.name} — interno del locale`}
+            fill
+            priority
+            sizes="(max-width: 480px) 100vw, 480px"
             onLoad={() => setImgLoaded(true)}
             style={{
-              position: 'absolute',
-              inset: 0,
-              width: '100%',
-              height: '100%',
               objectFit: 'cover',
               opacity: imgLoaded ? 1 : 0,
               transition: 'opacity 1.2s ease',

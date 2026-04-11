@@ -14,11 +14,6 @@ export default function NotFound() {
         textAlign: 'center',
       }}
     >
-      <link
-        href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Outfit:wght@200;300;400&display=swap"
-        rel="stylesheet"
-      />
-
       {/* Ornament */}
       <div
         style={{
@@ -44,7 +39,7 @@ export default function NotFound() {
       {/* Title */}
       <h1
         style={{
-          fontFamily: "'Cormorant Garamond', Georgia, serif",
+          fontFamily: 'Georgia, "Times New Roman", serif',
           fontSize: 28,
           fontWeight: 400,
           fontStyle: 'italic',
@@ -59,7 +54,7 @@ export default function NotFound() {
       {/* Subtitle */}
       <p
         style={{
-          fontFamily: "'Outfit', system-ui, sans-serif",
+          fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif',
           fontSize: 13,
           fontWeight: 300,
           color: '#6b6358',
@@ -78,7 +73,7 @@ export default function NotFound() {
       {/* Footer */}
       <div
         style={{
-          fontFamily: "'Outfit', system-ui, sans-serif",
+          fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif',
           fontSize: 9,
           fontWeight: 300,
           color: '#a09882',

@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
+import Image from 'next/image';
 import AllergenBadge from './AllergenBadge';
 
 const TAG_CONFIG: Record<string, { label: string; color: 'gold' | 'red' | 'muted' }> = {
@@ -85,16 +86,9 @@ export default function DishCard({
   const [expanded, setExpanded] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);
   const [imgError, setImgError] = useState(false);
-  const imgRef = useRef<HTMLImageElement>(null);
   const hasImg = !!dish.imageUrl && !imgError;
   const isChef = dish.isChefChoice;
   const soldOut = !dish.isAvailable;
-
-  useEffect(() => {
-    if (imgRef.current?.complete && imgRef.current.naturalWidth > 0) {
-      setImgLoaded(true);
-    }
-  }, []);
 
   return (
     <div
@@ -124,16 +118,18 @@ export default function DishCard({
             background: 'var(--footer-bg)',
           }}
         >
-          <img
-            ref={imgRef}
+          {/* Thumbnail lazy-loaded di default: sotto la fold, next/image
+              emette loading="lazy" automaticamente. sizes=128px e' un hint:
+              --card-image-size e' una CSS var nell'ordine 96-128px. */}
+          <Image
             src={dish.imageUrl!}
             alt={dish.name}
+            fill
+            sizes="128px"
             onLoad={() => setImgLoaded(true)}
             onError={() => setImgError(true)}
             className="menu-dish-img"
             style={{
-              width: '100%',
-              height: '100%',
               objectFit: 'cover',
               filter: 'saturate(0.85) contrast(1.05)',
               opacity: imgLoaded ? 1 : 0,

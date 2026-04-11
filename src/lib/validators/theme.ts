@@ -1,5 +1,10 @@
 import { z } from 'zod';
 import { FONT_FAMILY_SET } from '@/lib/theme/google-fonts';
+import { SupabaseImageUrlSchema } from './url';
+
+// Re-export per backwards compat con i call site esistenti che importano
+// SupabaseImageUrlSchema da questo modulo (Step 1.3.d).
+export { SupabaseImageUrlSchema };
 
 // ── Shared schemas ──────────────────────────────────────────
 
@@ -9,25 +14,6 @@ export const HexColorSchema = z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Colore HEX 
 export const FontFamilySchema = z
   .string()
   .refine(val => FONT_FAMILY_SET.has(val), { message: 'Font non consentito' });
-
-// L'URL dell'immagine di sfondo deve provenire dal Supabase Storage del progetto.
-// Fail-closed: se NEXT_PUBLIC_SUPABASE_URL manca o l'URL è malformato, rifiuta.
-export const SupabaseImageUrlSchema = z
-  .string()
-  .url()
-  .refine(
-    val => {
-      try {
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-        if (!supabaseUrl) return false;
-        const allowedHost = new URL(supabaseUrl).host;
-        return new URL(val).host === allowedHost;
-      } catch {
-        return false;
-      }
-    },
-    { message: 'L\'URL immagine deve provenire da Supabase Storage' }
-  );
 
 export const FontConfigSchema = z.object({
   family: FontFamilySchema,

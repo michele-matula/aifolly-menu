@@ -10,6 +10,7 @@
     "create-user": "tsx scripts/create-user.ts",
     "assign-restaurant": "tsx scripts/assign-restaurant.ts",
     "create-restaurant": "tsx scripts/create-restaurant.ts",
+    "migrate-seed-images": "tsx scripts/migrate-seed-images.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {
@@ -19,8 +20,9 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@prisma/client": "^6.19.3",
     "@supabase/supabase-js": "^2.102.1",
+    "@vercel/speed-insights": "^2.0.0",
     "bcryptjs": "^3.0.3",
-    "next": "16.2.2",
+    "next": "16.2.3",
     "next-auth": "^5.0.0-beta.30",
     "prisma": "^6.19.3",
     "qrcode": "^1.5.4",
@@ -38,7 +40,7 @@
     "@types/react-dom": "^19",
     "dotenv": "^17.4.1",
     "eslint": "^9",
-    "eslint-config-next": "16.2.2",
+    "eslint-config-next": "16.2.3",
     "tailwindcss": "^4",
     "tsx": "^4.21.0",
     "typescript": "^5"

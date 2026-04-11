@@ -4,6 +4,7 @@ import { getPublicRestaurant, getCachedPublicRestaurant } from '@/lib/queries/re
 import { tryGetOwnershipBySlug } from '@/lib/auth-helpers';
 import type { FullTheme } from '@/lib/validators/theme';
 import ThemeProvider from '@/components/menu/ThemeProvider';
+import MenuFonts from '@/components/menu/MenuFonts';
 import CoverPage from '@/components/menu/CoverPage';
 
 type Props = {
@@ -51,6 +52,7 @@ export default async function CoverPageRoute({ params, searchParams }: Props) {
 
   return (
     <ThemeProvider theme={theme}>
+      <MenuFonts theme={theme} />
       <CoverPage
         restaurant={{
           name: restaurant.name,
