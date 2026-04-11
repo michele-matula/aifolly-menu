@@ -4,6 +4,7 @@ import { getPublicRestaurant, getCachedPublicRestaurant } from '@/lib/queries/re
 import { tryGetOwnershipBySlug } from '@/lib/auth-helpers';
 import type { FullTheme } from '@/lib/validators/theme';
 import ThemeProvider from '@/components/menu/ThemeProvider';
+import MenuFonts from '@/components/menu/MenuFonts';
 import MenuHeader from '@/components/menu/MenuHeader';
 import MenuContent from '@/components/menu/MenuContent';
 import MenuFooter from '@/components/menu/MenuFooter';
@@ -76,6 +77,7 @@ export default async function MenuPageRoute({ params, searchParams }: Props) {
 
   return (
     <ThemeProvider theme={theme}>
+      <MenuFonts theme={theme} />
       <div
         style={{
           minHeight: '100vh',
