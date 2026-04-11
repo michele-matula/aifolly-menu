@@ -1,5 +1,16 @@
 import type { NextConfig } from "next";
 
+// Derivo l'host consentito per next/image da NEXT_PUBLIC_SUPABASE_URL cosi'
+// lo stesso .env copre dev/prod senza hardcodare il project ref. Fail-closed:
+// se l'env manca, il build fallisce invece di allowlistare "tutto".
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+if (!supabaseUrl) {
+  throw new Error(
+    "NEXT_PUBLIC_SUPABASE_URL non definita: next.config.ts non puo' derivare l'host per images.remotePatterns",
+  );
+}
+const supabaseHost = new URL(supabaseUrl).host;
+
 const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
   // SAMEORIGIN (non DENY come da spec §13.5) perché il theme builder
@@ -18,6 +29,19 @@ const nextConfig: NextConfig = {
   // garantire che i binari del query engine siano disponibili al runtime
   // delle serverless function.
   serverExternalPackages: ["@prisma/client"],
+  images: {
+    // AVIF per-first, WebP fallback. Il browser negozia via Accept header.
+    formats: ["image/avif", "image/webp"],
+    // Allowlist minima: solo object/public di Supabase Storage (no signed,
+    // no altri path). Deriva dall'env per stare in sync con dev/prod.
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: supabaseHost,
+        pathname: "/storage/v1/object/public/**",
+      },
+    ],
+  },
   async headers() {
     return [
       {
