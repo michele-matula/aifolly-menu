@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs";
 
 // Derivo l'host consentito per next/image da NEXT_PUBLIC_SUPABASE_URL cosi'
 // lo stesso .env copre dev/prod senza hardcodare il project ref. Fail-closed:
@@ -52,4 +53,17 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withSentryConfig(nextConfig, {
+  // Upload source maps per stack trace leggibili in Sentry.
+  // L'auth token viene da SENTRY_AUTH_TOKEN (env var su Vercel).
+  org: "aifolly",
+  project: "aifolly-menu",
+
+  // Source maps uploadate ma non esposte al client.
+  sourcemaps: {
+    deleteSourcemapsAfterUpload: true,
+  },
+
+  // Silenzia i log del plugin durante il build.
+  silent: !process.env.CI,
+});

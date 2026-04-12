@@ -19,6 +19,7 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@prisma/client": "^6.19.3",
+    "@sentry/nextjs": "^10.48.0",
     "@supabase/supabase-js": "^2.102.1",
     "@vercel/speed-insights": "^2.0.0",
     "bcryptjs": "^3.0.3",

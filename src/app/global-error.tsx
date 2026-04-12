@@ -1,5 +1,8 @@
 'use client';
 
+import * as Sentry from "@sentry/nextjs";
+import { useEffect } from "react";
+
 // Last-resort error boundary: cattura errori che escono dal root layout
 // (es. crash nei provider, errori di rendering del layout stesso).
 // IMPORTANTE: deve includere <html> e <body> perché sostituisce
@@ -7,11 +10,15 @@
 // né dipendenze dal layout — se il layout fallisce, anche queste
 // potrebbero non essere disponibili.
 export default function GlobalError({
+  error,
   reset,
 }: {
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  useEffect(() => {
+    Sentry.captureException(error);
+  }, [error]);
   return (
     <html lang="it">
       <body style={{ margin: 0, fontFamily: 'system-ui, -apple-system, sans-serif' }}>
