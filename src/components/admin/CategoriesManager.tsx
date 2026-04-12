@@ -61,8 +61,8 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/30" onClick={onClose} />
-      <div ref={dialogRef} role="dialog" aria-modal="true" className="relative bg-white rounded-lg shadow-xl w-full max-w-md p-6">
-        <h3 className="text-base font-semibold text-[#1c1917] mb-4">{title}</h3>
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="modal-title" className="relative bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+        <h3 id="modal-title" className="text-base font-semibold text-[#1c1917] mb-4">{title}</h3>
         {children}
       </div>
     </div>
@@ -103,7 +103,7 @@ function CategoryForm({
   return (
     <form action={formAction}>
       {state.error && !state.success && (
-        <div className="mb-4 px-3 py-2 text-[13px] text-red-700 bg-red-50 border border-red-200 rounded-md">
+        <div role="alert" className="mb-4 px-3 py-2 text-[13px] text-red-700 bg-red-50 border border-red-200 rounded-md">
           {state.error}
         </div>
       )}
@@ -113,8 +113,8 @@ function CategoryForm({
           <label htmlFor="cat-name" className="block text-[13px] font-medium text-[#44403c] mb-1">
             Nome <span className="text-[#c9b97a]">*</span>
           </label>
-          <input id="cat-name" name="name" required defaultValue={category?.name ?? ''} className={inputClass} />
-          {state.fieldErrors?.name && <p className="mt-1 text-[12px] text-red-600">{state.fieldErrors.name[0]}</p>}
+          <input id="cat-name" name="name" required aria-required="true" aria-invalid={!!state.fieldErrors?.name || undefined} aria-describedby={state.fieldErrors?.name ? 'cat-name-error' : undefined} defaultValue={category?.name ?? ''} className={inputClass} />
+          {state.fieldErrors?.name && <p id="cat-name-error" className="mt-1 text-[12px] text-red-600">{state.fieldErrors.name[0]}</p>}
         </div>
 
         <div>
@@ -223,6 +223,7 @@ function SortableCategoryRow({
           onClick={onEdit}
           className="p-1.5 text-[#a8a29e] hover:text-[#c9b97a] rounded transition-colors cursor-pointer"
           title="Modifica"
+          aria-label={`Modifica ${category.name}`}
         >
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
@@ -237,6 +238,7 @@ function SortableCategoryRow({
               : 'text-[#a8a29e] hover:text-red-500'
           }`}
           title={hasDishes ? `Contiene ${category.dishCount} piatti — eliminali prima` : 'Elimina'}
+          aria-label={hasDishes ? `Impossibile eliminare ${category.name}: contiene ${category.dishCount} piatti` : `Elimina ${category.name}`}
         >
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />

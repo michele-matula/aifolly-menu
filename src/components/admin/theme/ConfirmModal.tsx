@@ -41,9 +41,9 @@ export default function ConfirmModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/30" onClick={isPending ? undefined : onCancel} />
-      <div ref={dialogRef} role="dialog" aria-modal="true" className="relative bg-white rounded-lg shadow-xl w-full max-w-md p-6">
-        <h3 className="text-base font-semibold text-[#1c1917] mb-2">{title}</h3>
-        <p className="text-sm text-[#78716c] mb-6">{message}</p>
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="confirm-modal-title" aria-describedby="confirm-modal-desc" className="relative bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+        <h3 id="confirm-modal-title" className="text-base font-semibold text-[#1c1917] mb-2">{title}</h3>
+        <p id="confirm-modal-desc" className="text-sm text-[#78716c] mb-6">{message}</p>
         <div className="flex justify-end gap-3">
           <button
             type="button"

@@ -94,7 +94,7 @@ export default function InfoForm({ restaurantId, isPublished, slug, defaultValue
     <form action={formAction}>
       {/* General error */}
       {state.error && !state.success && (
-        <div className="mb-6 px-4 py-3 text-[13px] text-red-700 bg-red-50 border border-red-200 rounded-md">
+        <div role="alert" className="mb-6 px-4 py-3 text-[13px] text-red-700 bg-red-50 border border-red-200 rounded-md">
           {state.error}
         </div>
       )}
@@ -120,6 +120,9 @@ export default function InfoForm({ restaurantId, isPublished, slug, defaultValue
                   name={field.name}
                   defaultValue={defaultValues[field.name as keyof typeof defaultValues]}
                   required={field.required}
+                  aria-required={field.required || undefined}
+                  aria-invalid={hasError || undefined}
+                  aria-describedby={hasError ? `${field.name}-error` : undefined}
                   rows={4}
                   className={hasError ? errorInputClass : inputClass}
                 />
@@ -130,6 +133,9 @@ export default function InfoForm({ restaurantId, isPublished, slug, defaultValue
                   type={field.type || 'text'}
                   defaultValue={defaultValues[field.name as keyof typeof defaultValues]}
                   required={field.required}
+                  aria-required={field.required || undefined}
+                  aria-invalid={hasError || undefined}
+                  aria-describedby={hasError ? `${field.name}-error` : undefined}
                   className={hasError ? errorInputClass : inputClass}
                 />
               )}
@@ -144,7 +150,7 @@ export default function InfoForm({ restaurantId, isPublished, slug, defaultValue
               )}
 
               {hasError && (
-                <p className="mt-1 text-[12px] text-red-600">{fieldErrors[0]}</p>
+                <p id={`${field.name}-error`} className="mt-1 text-[12px] text-red-600">{fieldErrors[0]}</p>
               )}
             </div>
           );

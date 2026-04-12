@@ -1,6 +1,7 @@
 export default function DishesLoading() {
   return (
-    <div className="space-y-4">
+    <div role="status" aria-live="polite" className="space-y-4">
+      <span className="sr-only">Caricamento piatti in corso…</span>
       <div className="flex items-center justify-between">
         <div className="h-7 w-48 animate-pulse rounded bg-stone-100" />
         <div className="h-10 w-64 animate-pulse rounded bg-stone-100" />

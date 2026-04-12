@@ -137,7 +137,7 @@ export default function DishForm({ mode, restaurantId, categories, dish, default
     <form action={formAction} className="max-w-2xl">
       {/* Error banner */}
       {state.error && !state.success && (
-        <div className="mb-6 px-4 py-3 text-[13px] text-red-700 bg-red-50 border border-red-200 rounded-md">
+        <div role="alert" className="mb-6 px-4 py-3 text-[13px] text-red-700 bg-red-50 border border-red-200 rounded-md">
           {state.error}
         </div>
       )}
@@ -163,8 +163,8 @@ export default function DishForm({ mode, restaurantId, categories, dish, default
             <label htmlFor="name" className="block text-[13px] font-medium text-[#44403c] mb-1">
               Nome <span className="text-[#c9b97a]">*</span>
             </label>
-            <input id="name" name="name" required defaultValue={dish?.name ?? ''} className={inputClass} />
-            {state.fieldErrors?.name && <p className="mt-1 text-[12px] text-red-600">{state.fieldErrors.name[0]}</p>}
+            <input id="name" name="name" required aria-required="true" aria-invalid={!!state.fieldErrors?.name || undefined} aria-describedby={state.fieldErrors?.name ? 'name-error' : undefined} defaultValue={dish?.name ?? ''} className={inputClass} />
+            {state.fieldErrors?.name && <p id="name-error" className="mt-1 text-[12px] text-red-600">{state.fieldErrors.name[0]}</p>}
           </div>
 
           <div>
@@ -176,18 +176,18 @@ export default function DishForm({ mode, restaurantId, categories, dish, default
             <label htmlFor="categoryId" className="block text-[13px] font-medium text-[#44403c] mb-1">
               Categoria <span className="text-[#c9b97a]">*</span>
             </label>
-            <select id="categoryId" name="categoryId" required defaultValue={dish?.categoryId ?? defaultCategoryId ?? ''} className={inputClass}>
+            <select id="categoryId" name="categoryId" required aria-required="true" aria-invalid={!!state.fieldErrors?.categoryId || undefined} aria-describedby={state.fieldErrors?.categoryId ? 'categoryId-error' : undefined} defaultValue={dish?.categoryId ?? defaultCategoryId ?? ''} className={inputClass}>
               <option value="">Seleziona...</option>
               {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
-            {state.fieldErrors?.categoryId && <p className="mt-1 text-[12px] text-red-600">{state.fieldErrors.categoryId[0]}</p>}
+            {state.fieldErrors?.categoryId && <p id="categoryId-error" className="mt-1 text-[12px] text-red-600">{state.fieldErrors.categoryId[0]}</p>}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label htmlFor="price" className="block text-[13px] font-medium text-[#44403c] mb-1">Prezzo (€)</label>
-              <input id="price" name="price" type="number" step="0.01" min="0" defaultValue={dish?.price ?? ''} className={inputClass} placeholder="0.00" />
-              {state.fieldErrors?.price && <p className="mt-1 text-[12px] text-red-600">{state.fieldErrors.price[0]}</p>}
+              <input id="price" name="price" type="number" step="0.01" min="0" aria-invalid={!!state.fieldErrors?.price || undefined} aria-describedby={state.fieldErrors?.price ? 'price-error' : undefined} defaultValue={dish?.price ?? ''} className={inputClass} placeholder="0.00" />
+              {state.fieldErrors?.price && <p id="price-error" className="mt-1 text-[12px] text-red-600">{state.fieldErrors.price[0]}</p>}
             </div>
             <div>
               <label htmlFor="priceLabel" className="block text-[13px] font-medium text-[#44403c] mb-1">Etichetta prezzo</label>
@@ -418,9 +418,9 @@ function DishFormDeleteDialog({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/30" onClick={onCancel} />
-      <div ref={dialogRef} role="dialog" aria-modal="true" className="relative bg-white rounded-lg shadow-xl w-full max-w-sm p-6">
-        <h3 className="text-base font-semibold text-[#1c1917] mb-2">Elimina piatto</h3>
-        <p className="text-sm text-[#78716c] mb-6">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="dish-delete-title" aria-describedby="dish-delete-desc" className="relative bg-white rounded-lg shadow-xl w-full max-w-sm p-6">
+        <h3 id="dish-delete-title" className="text-base font-semibold text-[#1c1917] mb-2">Elimina piatto</h3>
+        <p id="dish-delete-desc" className="text-sm text-[#78716c] mb-6">
           Sei sicuro di voler eliminare <strong>{dishName}</strong>? Questa azione non può essere annullata.
         </p>
         <div className="flex justify-end gap-3">

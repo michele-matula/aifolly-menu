@@ -1,6 +1,8 @@
 export default function Loading() {
   return (
     <div
+      role="status"
+      aria-live="polite"
       style={{
         minHeight: '100vh',
         maxWidth: 480,
@@ -10,6 +12,9 @@ export default function Loading() {
         flexDirection: 'column',
       }}
     >
+      <span style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap' }}>
+        Caricamento in corso…
+      </span>
       <style>{`
         @keyframes skeletonPulse {
           0%, 100% { opacity: 0.4; }

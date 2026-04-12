@@ -120,7 +120,7 @@ export default function ImageUploader({
 
       {/* Error */}
       {error && (
-        <div className="mb-2 px-3 py-2 text-[12px] text-red-700 bg-red-50 border border-red-200 rounded-md">
+        <div role="alert" className="mb-2 px-3 py-2 text-[12px] text-red-700 bg-red-50 border border-red-200 rounded-md">
           {error}
         </div>
       )}
@@ -156,7 +156,12 @@ export default function ImageUploader({
       ) : (
         /* Dropzone */
         <div
+          role="button"
+          tabIndex={0}
+          aria-label={label ? `Carica ${label}` : 'Carica immagine'}
+          aria-busy={uploading}
           onClick={() => !uploading && inputRef.current?.click()}
+          onKeyDown={e => { if ((e.key === 'Enter' || e.key === ' ') && !uploading) { e.preventDefault(); inputRef.current?.click(); } }}
           onDragOver={e => { e.preventDefault(); setDragOver(true); }}
           onDragLeave={() => setDragOver(false)}
           onDrop={handleDrop}

@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import Link from 'next/link';
 
 export default function DashboardError({
@@ -9,11 +10,14 @@ export default function DashboardError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => { containerRef.current?.focus(); }, []);
+
   const message = error.message?.slice(0, 200) || 'Errore sconosciuto';
 
   return (
     <div className="flex min-h-[60vh] items-center justify-center">
-      <div className="w-full max-w-md rounded-lg border border-stone-200 bg-white p-8 text-center shadow-sm">
+      <div ref={containerRef} role="alert" tabIndex={-1} className="w-full max-w-md rounded-lg border border-stone-200 bg-white p-8 text-center shadow-sm outline-none">
         <svg
           className="mx-auto mb-4 h-12 w-12 text-[#c9b97a]"
           fill="none"

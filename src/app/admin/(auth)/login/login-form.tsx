@@ -67,11 +67,13 @@ export default function LoginForm() {
           id="email"
           type="email"
           required
+          aria-required="true"
           autoFocus
           value={email}
           onChange={e => setEmail(e.target.value)}
           style={inputStyle}
           placeholder="nome@ristorante.it"
+          aria-describedby={error ? 'login-error' : undefined}
         />
       </div>
 
@@ -87,16 +89,20 @@ export default function LoginForm() {
           id="password"
           type="password"
           required
+          aria-required="true"
           value={password}
           onChange={e => setPassword(e.target.value)}
           style={inputStyle}
           placeholder="••••••••"
+          aria-describedby={error ? 'login-error' : undefined}
         />
       </div>
 
       {/* Error */}
       {error && (
         <div
+          id="login-error"
+          role="alert"
           style={{
             fontSize: 13,
             color: '#a04438',
@@ -115,6 +121,7 @@ export default function LoginForm() {
       <button
         type="submit"
         disabled={loading}
+        aria-busy={loading}
         style={{
           width: '100%',
           padding: '12px 24px',

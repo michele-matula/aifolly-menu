@@ -90,6 +90,7 @@ function SortableDishRow({ dish, restaurantId, draggable, onDelete }: {
           {...attributes}
           {...listeners}
           className="cursor-grab active:cursor-grabbing text-[#a8a29e] hover:text-[#78716c] touch-none p-1 shrink-0"
+          aria-label="Trascina per riordinare"
         >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
             <circle cx="5" cy="3" r="1.5" /><circle cx="11" cy="3" r="1.5" />
@@ -130,6 +131,8 @@ function SortableDishRow({ dish, restaurantId, draggable, onDelete }: {
             dish.isChefChoice ? 'text-[#c9b97a]' : 'text-[#d6d3d1] hover:text-[#c9b97a]'
           }`}
           title={dish.isChefChoice ? 'Rimuovi proposta chef' : 'Proposta dello chef'}
+          aria-label={dish.isChefChoice ? 'Rimuovi proposta chef' : 'Proposta dello chef'}
+          aria-pressed={dish.isChefChoice}
         >
           ★
         </button>
@@ -137,6 +140,7 @@ function SortableDishRow({ dish, restaurantId, draggable, onDelete }: {
           href={`/admin/restaurants/${restaurantId}/dishes/${dish.id}/edit`}
           className="p-1.5 text-[#a8a29e] hover:text-[#c9b97a] rounded transition-colors"
           title="Modifica"
+          aria-label={`Modifica ${dish.name}`}
         >
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
@@ -147,6 +151,7 @@ function SortableDishRow({ dish, restaurantId, draggable, onDelete }: {
           onClick={() => onDelete(dish)}
           className="p-1.5 text-[#a8a29e] hover:text-red-500 rounded transition-colors cursor-pointer"
           title="Elimina"
+          aria-label={`Elimina ${dish.name}`}
         >
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
@@ -284,9 +289,9 @@ function DishDeleteDialog({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/30" onClick={onCancel} />
-      <div ref={dialogRef} role="dialog" aria-modal="true" className="relative bg-white rounded-lg shadow-xl w-full max-w-sm p-6">
-        <h3 className="text-base font-semibold text-[#1c1917] mb-2">Elimina piatto</h3>
-        <p className="text-sm text-[#78716c] mb-6">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="dishes-delete-title" aria-describedby="dishes-delete-desc" className="relative bg-white rounded-lg shadow-xl w-full max-w-sm p-6">
+        <h3 id="dishes-delete-title" className="text-base font-semibold text-[#1c1917] mb-2">Elimina piatto</h3>
+        <p id="dishes-delete-desc" className="text-sm text-[#78716c] mb-6">
           Sei sicuro di voler eliminare <strong>{dishName}</strong>?
         </p>
         <div className="flex justify-end gap-3">

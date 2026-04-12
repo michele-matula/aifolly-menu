@@ -1,13 +1,21 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
+
 export default function ErrorPage({
   reset,
 }: {
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => { containerRef.current?.focus(); }, []);
+
   return (
     <div
+      ref={containerRef}
+      role="alert"
+      tabIndex={-1}
       style={{
         minHeight: '100vh',
         maxWidth: 480,
@@ -19,6 +27,7 @@ export default function ErrorPage({
         justifyContent: 'center',
         padding: '32px',
         textAlign: 'center',
+        outline: 'none',
       }}
     >
       {/* Ornament */}

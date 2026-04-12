@@ -1,6 +1,7 @@
 export default function DashboardLoading() {
   return (
-    <div className="space-y-6">
+    <div role="status" aria-live="polite" className="space-y-6">
+      <span className="sr-only">Caricamento in corso…</span>
       <div className="space-y-2">
         <div className="h-6 w-48 animate-pulse rounded bg-stone-100" />
         <div className="h-4 w-64 animate-pulse rounded bg-stone-100" />

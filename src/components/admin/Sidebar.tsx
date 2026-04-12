@@ -38,6 +38,7 @@ export default function Sidebar({ userEmail }: SidebarProps) {
               key={item.href}
               href={item.href}
               onClick={() => setOpen(false)}
+              aria-current={isActive ? 'page' : undefined}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-[13px] font-medium no-underline transition-colors ${
                 isActive
                   ? 'bg-[#f5f3ef] text-[#1c1917]'

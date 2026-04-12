@@ -3,7 +3,8 @@
 // (che è una lista di righe), creando un flash visivo sbagliato.
 export default function NewDishLoading() {
   return (
-    <div>
+    <div role="status" aria-live="polite">
+      <span className="sr-only">Caricamento modulo in corso…</span>
       <div className="mb-1 h-6 w-32 animate-pulse rounded bg-stone-100" />
       <div className="mb-6 h-4 w-48 animate-pulse rounded bg-stone-100" />
 

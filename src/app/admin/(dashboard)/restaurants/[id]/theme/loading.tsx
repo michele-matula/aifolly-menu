@@ -1,6 +1,7 @@
 export default function ThemeLoading() {
   return (
-    <div className="space-y-6">
+    <div role="status" aria-live="polite" className="space-y-6">
+      <span className="sr-only">Caricamento tema in corso…</span>
       <div className="h-7 w-56 animate-pulse rounded bg-stone-100" />
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div className="space-y-4">
