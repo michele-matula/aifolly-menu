@@ -3,7 +3,8 @@
     "allow": [
       "Bash(mv:*)",
       "Bash(npm install:*)",
-      "Bash(mkdir:*)"
+      "Bash(mkdir:*)",
+      "Bash(find \"C:\\\\Users\\\\Michele\\\\source\\\\repos\\\\aifolly-menu\\\\src\" -type f \\\\\\( -name \"*.tsx\" -o -name \"*.ts\" \\\\\\) -exec grep -l \"fixed inset-0\\\\|dialog\\\\|Modal\\\\|modal\" {} \\\\;)"
     ]
   }
 }
