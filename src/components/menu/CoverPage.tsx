@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import type { CoverTheme } from '@/lib/validators/theme';
+import { track, detectSource, markCoverVisited } from '@/lib/analytics';
 
 interface CoverPageProps {
   restaurant: {
@@ -22,10 +23,21 @@ interface CoverPageProps {
 export default function CoverPage({ restaurant, theme }: CoverPageProps) {
   const [loaded, setLoaded] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);
+  const coverOpenedAt = useRef<number>(0);
 
   useEffect(() => {
     setTimeout(() => setLoaded(true), 100);
   }, []);
+
+  // Tracking: copertina aperta. `detectSource()` legge ?source=qr,
+  // referrer, ecc. `markCoverVisited()` persiste in sessionStorage per
+  // far capire al menu se arriva dalla cover (navigazione interna) o
+  // direttamente (es. QR che linka al menu).
+  useEffect(() => {
+    coverOpenedAt.current = Date.now();
+    track('cover_viewed', { source: detectSource() });
+    markCoverVisited(restaurant.slug);
+  }, [restaurant.slug]);
 
   return (
     <div
@@ -322,6 +334,12 @@ export default function CoverPage({ restaurant, theme }: CoverPageProps) {
           {/* CTA Button */}
           <Link
             href={`/${restaurant.slug}/menu`}
+            onClick={() => {
+              const timeOnCover = coverOpenedAt.current
+                ? Math.round((Date.now() - coverOpenedAt.current) / 1000)
+                : 0;
+              track('cover_cta_clicked', { timeOnCover });
+            }}
             className="cover-cta cover-fade-5"
             style={{
               fontFamily: 'var(--cover-cta-font)',

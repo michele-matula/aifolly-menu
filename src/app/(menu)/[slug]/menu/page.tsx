@@ -8,6 +8,7 @@ import MenuFonts from '@/components/menu/MenuFonts';
 import MenuHeader from '@/components/menu/MenuHeader';
 import MenuContent from '@/components/menu/MenuContent';
 import MenuFooter from '@/components/menu/MenuFooter';
+import MenuViewTracker from '@/components/menu/MenuViewTracker';
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -78,6 +79,7 @@ export default async function MenuPageRoute({ params, searchParams }: Props) {
   return (
     <ThemeProvider theme={theme}>
       <MenuFonts theme={theme} />
+      <MenuViewTracker slug={slug} />
       <div
         style={{
           minHeight: '100vh',
