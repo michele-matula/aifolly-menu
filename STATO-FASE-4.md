@@ -1017,15 +1017,79 @@ validator, o periodicamente per verificare la compliance).
    pannello admin (l'utente)
 8. Smoke test in prod post-deploy Vercel prima di chiudere lo step
 
-## Prossimi step di Fase 4 (dopo Step 6)
+## Step 5 — Audit a11y completo (WCAG 2.1 AA) ✅
 
-- **Step 5 — Audit a11y completo** (form admin, screen reader, focus
-  trap esteso al di là delle modali, audit a11y dei boundary residui
-  di Step 3 — focus management, annunci dello stato di loading).
+Branch: `feature/fase-4-step-5-a11y`
+Commit: `feat(a11y): complete WCAG 2.1 AA accessibility audit`
 
-Con Step 5 si chiude Fase 4. Nota: la numerazione degli step segue
-l'ordine in cui li abbiamo affrontati (1 → 2 → 3 → 4 → 6 → 5), NON
-l'ordine originale della scaletta nello spec. Step 6 e' stato
-anticipato rispetto a Step 5 perche' il warning Google Fonts era
-un filo gia' mezzo tirato da Step 3 e valeva la pena chiuderlo col
-contesto fresco.
+### Cosa è stato fatto
+
+Audit accessibilità completo su tutto il pannello admin e le pagine
+pubbliche. 22 file toccati, 5 aree di intervento:
+
+1. **Loading boundaries** (11 file `loading.tsx`):
+   `role="status"` + `aria-live="polite"` + testo visually-hidden
+   contestuale (es. "Caricamento piatti in corso…"). Gli screen reader
+   annunciano ora il caricamento quando Next.js mostra uno skeleton.
+
+2. **Error boundaries** (3 file `error.tsx`):
+   `role="alert"` sul container errore + auto-focus al mount via
+   `useRef`/`useEffect` + `tabIndex={-1}` con `outline: none`.
+   Lo screen reader annuncia l'errore e il focus si sposta sul
+   messaggio per azione immediata.
+
+3. **Form a11y** (5 file: login-form, info-form, DishForm,
+   CategoryForm, ImageUploader):
+   - `aria-required="true"` su tutti i campi obbligatori
+   - `aria-invalid` dinamico quando il campo ha errori di validazione
+   - `aria-describedby` che collega ogni input al proprio messaggio
+     d'errore tramite id univoco (es. `name-error`, `price-error`)
+   - `role="alert"` sui banner errore generici di form
+   - `aria-busy` sul bottone submit durante il salvataggio
+   - ImageUploader: `role="button"` + `tabIndex={0}` + handler
+     `onKeyDown` (Enter/Space) + `aria-label` contestuale sulla
+     dropzone, rendendola navigabile da tastiera
+
+4. **Modal/dialog a11y** (4 componenti: ConfirmModal, CategoriesManager
+   Modal, DishForm delete dialog, DishesList delete dialog):
+   `aria-labelledby` verso il titolo + `aria-describedby` verso la
+   descrizione, con `id` corrispondenti su `<h3>` e `<p>`.
+
+5. **Navigation + action buttons** (3 file: Sidebar, DishesList,
+   CategoriesManager):
+   - `aria-current="page"` sul link attivo nella sidebar
+   - `aria-label` contestuale (con nome entità) su tutti i bottoni
+     icona che avevano solo `title`
+   - `aria-pressed` sul toggle "proposta dello chef"
+   - `aria-label` sul drag handle in DishesList (mancava)
+
+### Cosa NON è stato fatto (e perché)
+
+- **Skip link** ("Vai al contenuto"): il pannello admin ha una
+  sidebar con 1 solo link nav + il contenuto è subito dopo. Il
+  rapporto costo/beneficio non giustifica l'aggiunta.
+- **Landmark `<main>`**: già presente nel layout admin dashboard.
+- **`aria-live` per progresso upload percentuale**: l'upload è
+  istantaneo (< 1s per immagini ≤ 5MB su Supabase). Un annuncio
+  "Caricamento..." + "Errore" copre il caso. Progresso granulare
+  sarebbe over-engineering.
+
+---
+
+## Fase 4 — Chiusura
+
+Con Step 5 tutti e 6 gli step di Fase 4 sono completati:
+
+| Step | Titolo                        | Branch                              |
+|------|-------------------------------|-------------------------------------|
+| 1    | Security baseline             | `feature/fase-4-step-1-security`    |
+| 2    | Data cache + tag invalidation | `feature/fase-4-step-2-cache`       |
+| 3    | Loading states + error bounds | `feature/fase-4-step-3-loading`     |
+| 4    | Auth hardening                | `feature/fase-4-step-4-auth`        |
+| 6    | Performance review            | `feature/fase-4-step-6-performance` |
+| 5    | Audit a11y completo           | `feature/fase-4-step-5-a11y`        |
+
+Ordine di esecuzione: 1 → 2 → 3 → 4 → 6 → 5 (Step 6 anticipato
+perché il warning Google Fonts era già mezzo tirato da Step 3).
+
+Fase 4 chiusa. Non procedere oltre senza esplicita richiesta.
