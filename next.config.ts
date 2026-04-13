@@ -12,6 +12,53 @@ if (!supabaseUrl) {
 }
 const supabaseHost = new URL(supabaseUrl).host;
 
+// CSP costruita per l'app reale (Sentry EU, PostHog EU, Vercel Insights,
+// Supabase Storage, Google Fonts dei temi). Se cambia l'host di un
+// servizio (es. Sentry US), aggiornare qui di conseguenza.
+const CSP_DIRECTIVES: Record<string, string[]> = {
+  "default-src": ["'self'"],
+  "script-src": [
+    "'self'",
+    // Next.js inietta script di hydration inline; senza unsafe-inline il
+    // sito non parte. Una transizione a nonce richiede refactor del root
+    // layout — non in scope per Step 4.
+    "'unsafe-inline'",
+    "https://*.ingest.de.sentry.io",
+    "https://eu.i.posthog.com",
+    "https://eu-assets.i.posthog.com",
+  ],
+  "style-src": [
+    "'self'",
+    // CoverPage/MenuPage usano inline <style> per le animazioni del tema.
+    "'unsafe-inline'",
+    "https://fonts.googleapis.com",
+  ],
+  "font-src": ["'self'", "https://fonts.gstatic.com"],
+  "img-src": ["'self'", "data:", "blob:", `https://${supabaseHost}`],
+  "connect-src": [
+    "'self'",
+    "https://*.ingest.de.sentry.io",
+    "https://eu.i.posthog.com",
+    "https://eu-assets.i.posthog.com",
+    "https://vitals.vercel-insights.com",
+  ],
+  // Sentry session replay (attivo solo on-error) crea worker da blob.
+  "worker-src": ["'self'", "blob:"],
+  // Pari con X-Frame-Options: SAMEORIGIN — il theme builder usa iframe
+  // same-origin per la preview live.
+  "frame-ancestors": ["'self'"],
+  "base-uri": ["'self'"],
+  "form-action": ["'self'"],
+  "object-src": ["'none'"],
+  "upgrade-insecure-requests": [],
+};
+
+const cspString = Object.entries(CSP_DIRECTIVES)
+  .map(([directive, sources]) =>
+    sources.length > 0 ? `${directive} ${sources.join(" ")}` : directive,
+  )
+  .join("; ");
+
 const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
   // SAMEORIGIN (non DENY come da spec §13.5) perché il theme builder
@@ -23,6 +70,7 @@ const securityHeaders = [
     key: "Strict-Transport-Security",
     value: "max-age=63072000; includeSubDomains; preload",
   },
+  { key: "Content-Security-Policy", value: cspString },
 ];
 
 const nextConfig: NextConfig = {
