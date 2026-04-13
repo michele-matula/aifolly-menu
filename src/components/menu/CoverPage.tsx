@@ -160,6 +160,7 @@ export default function CoverPage({ restaurant, theme }: CoverPageProps) {
               alt={restaurant.name}
               width={200}
               height={200}
+              priority
               style={{
                 width: 'auto',
                 height: 'auto',
