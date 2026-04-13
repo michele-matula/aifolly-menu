@@ -12,6 +12,11 @@ if (!supabaseUrl) {
 }
 const supabaseHost = new URL(supabaseUrl).host;
 
+// React in dev mode usa eval() per alcune feature di debugging (source map
+// overlay, stack trace reconstruction). In prod React non ne ha bisogno e
+// manteniamo la CSP stretta. Il flag separa esplicitamente i due env.
+const isDev = process.env.NODE_ENV !== "production";
+
 // CSP costruita per l'app reale (Sentry EU, PostHog EU, Vercel Insights,
 // Supabase Storage, Google Fonts dei temi). Se cambia l'host di un
 // servizio (es. Sentry US), aggiornare qui di conseguenza.
@@ -23,6 +28,10 @@ const CSP_DIRECTIVES: Record<string, string[]> = {
     // sito non parte. Una transizione a nonce richiede refactor del root
     // layout — non in scope per Step 4.
     "'unsafe-inline'",
+    // Solo in dev: React dev mode usa eval() per debug tooling. In prod
+    // non viene mai aggiunto (isDev === false), quindi la CSP resta
+    // rigorosa per gli utenti finali.
+    ...(isDev ? ["'unsafe-eval'"] : []),
     "https://*.ingest.de.sentry.io",
     "https://eu.i.posthog.com",
     "https://eu-assets.i.posthog.com",
