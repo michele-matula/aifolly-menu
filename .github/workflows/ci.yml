@@ -21,11 +21,13 @@ jobs:
     name: Lint + unit test
     runs-on: ubuntu-latest
     env:
-      # Richiesto dal postinstall (`prisma generate`), che carica
-      # prisma.config.ts: il config fallisce fast se DATABASE_URL manca.
-      # `prisma generate` non apre connessioni al DB, quindi qui
-      # stiamo solo rispettando la validazione del config.
+      # Richiesti dal postinstall (`prisma generate`), che carica
+      # prisma.config.ts: il config valida a caricamento la presenza
+      # di entrambe le URL (datasource + directUrl). `prisma generate`
+      # non apre connessioni, quindi qui stiamo solo rispettando la
+      # validazione del config.
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      DIRECT_URL: ${{ secrets.DIRECT_URL }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
