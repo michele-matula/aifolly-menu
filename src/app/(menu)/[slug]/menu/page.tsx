@@ -9,6 +9,7 @@ import MenuHeader from '@/components/menu/MenuHeader';
 import MenuContent from '@/components/menu/MenuContent';
 import MenuFooter from '@/components/menu/MenuFooter';
 import MenuViewTracker from '@/components/menu/MenuViewTracker';
+import RestaurantStructuredData from '@/components/menu/RestaurantStructuredData';
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -103,10 +104,44 @@ export default async function MenuPageRoute({ params, searchParams }: Props) {
     })),
   }));
 
+  const baseUrl =
+    process.env.NEXT_PUBLIC_APP_URL || 'https://aifolly-menu.vercel.app';
+
   return (
     <ThemeProvider theme={theme}>
       <MenuFonts theme={theme} />
       <MenuViewTracker slug={slug} />
+      {/* JSON-LD solo sul menu pubblico (non in modalità preview admin) */}
+      {!useDraft && (
+        <RestaurantStructuredData
+          restaurant={{
+            name: restaurant.name,
+            slug: restaurant.slug,
+            tagline: restaurant.tagline,
+            description: restaurant.description,
+            address: restaurant.address,
+            city: restaurant.city,
+            province: restaurant.province,
+            country: restaurant.country,
+            phone: restaurant.phone,
+            email: restaurant.email,
+            website: restaurant.website,
+            logoUrl: restaurant.logoUrl,
+            coverUrl: restaurant.coverUrl,
+          }}
+          categories={categories.map(cat => ({
+            name: cat.name,
+            dishes: cat.dishes.map(d => ({
+              name: d.name,
+              description: d.description,
+              price: d.price,
+              priceLabel: d.priceLabel,
+              imageUrl: d.imageUrl,
+            })),
+          }))}
+          baseUrl={baseUrl}
+        />
+      )}
       <div
         style={{
           minHeight: '100vh',
