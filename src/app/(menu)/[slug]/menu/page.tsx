@@ -15,17 +15,44 @@ type Props = {
   searchParams: Promise<{ previewDraft?: string }>;
 };
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const { slug } = await params;
+  const { previewDraft } = await searchParams;
   const restaurant = await getCachedPublicRestaurant(slug);
 
   if (!restaurant) {
-    return { title: 'Ristorante non trovato' };
+    return { title: 'Ristorante non trovato', robots: { index: false } };
   }
 
+  const title = `Menu — ${restaurant.name}`;
+  const description =
+    restaurant.tagline ||
+    restaurant.description ||
+    `Menu di ${restaurant.name}.`;
+  const ogImage = restaurant.coverUrl || restaurant.logoUrl || undefined;
+
   return {
-    title: `Menu — ${restaurant.name}`,
-    description: restaurant.tagline || restaurant.description || undefined,
+    title,
+    description,
+    alternates: {
+      canonical: `/${slug}/menu`,
+    },
+    robots: previewDraft === '1' ? { index: false, follow: false } : undefined,
+    openGraph: {
+      title,
+      description,
+      url: `/${slug}/menu`,
+      siteName: restaurant.name,
+      locale: 'it_IT',
+      type: 'website',
+      images: ogImage ? [{ url: ogImage }] : undefined,
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: ogImage ? [ogImage] : undefined,
+    },
   };
 }
 

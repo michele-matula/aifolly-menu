@@ -12,17 +12,47 @@ type Props = {
   searchParams: Promise<{ previewDraft?: string }>;
 };
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const { slug } = await params;
+  const { previewDraft } = await searchParams;
   const restaurant = await getCachedPublicRestaurant(slug);
 
   if (!restaurant) {
-    return { title: 'Ristorante non trovato' };
+    return { title: 'Ristorante non trovato', robots: { index: false } };
   }
 
+  const title = `${restaurant.name} — Menu Digitale`;
+  const description =
+    restaurant.tagline ||
+    restaurant.description ||
+    `Scopri il menu di ${restaurant.name}.`;
+  // coverUrl è l'immagine hero della copertina, più rappresentativa del
+  // logo per l'anteprima social; fallback al logo se manca.
+  const ogImage = restaurant.coverUrl || restaurant.logoUrl || undefined;
+
   return {
-    title: `${restaurant.name} — Menu Digitale`,
-    description: restaurant.tagline || restaurant.description || undefined,
+    title,
+    description,
+    alternates: {
+      canonical: `/${slug}`,
+    },
+    // Preview admin (?previewDraft=1) non deve essere indicizzata.
+    robots: previewDraft === '1' ? { index: false, follow: false } : undefined,
+    openGraph: {
+      title: restaurant.name,
+      description,
+      url: `/${slug}`,
+      siteName: restaurant.name,
+      locale: 'it_IT',
+      type: 'website',
+      images: ogImage ? [{ url: ogImage }] : undefined,
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: restaurant.name,
+      description,
+      images: ogImage ? [ogImage] : undefined,
+    },
   };
 }
 
