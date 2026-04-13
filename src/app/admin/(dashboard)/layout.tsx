@@ -1,5 +1,4 @@
 import { getCurrentUser } from '@/lib/auth-helpers';
-import { signOut } from '@/lib/auth';
 import Sidebar from '@/components/admin/Sidebar';
 import { Toaster } from 'sonner';
 

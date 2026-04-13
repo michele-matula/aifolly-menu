@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { toastSuccess, toastError } from '@/lib/toast';
 import { useFocusTrap } from '@/hooks/useFocusTrap';
 
@@ -16,7 +16,6 @@ interface MediaItem {
 }
 
 interface Props {
-  restaurantId: string;
   initialAssets: MediaItem[];
   totalSize: number;
 }
@@ -43,8 +42,7 @@ function formatSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export default function MediaLibrary({ restaurantId, initialAssets, totalSize }: Props) {
-  const router = useRouter();
+export default function MediaLibrary({ initialAssets, totalSize }: Props) {
   const [assets, setAssets] = useState(initialAssets);
   const [filter, setFilter] = useState<string>('ALL');
   const [deleteTarget, setDeleteTarget] = useState<MediaItem | null>(null);
@@ -111,11 +109,13 @@ export default function MediaLibrary({ restaurantId, initialAssets, totalSize }:
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
           {filtered.map(asset => (
             <div key={asset.id} className="group relative rounded-md overflow-hidden border border-[#e7e5e4] bg-[#fafaf9]">
-              <div className="aspect-square">
-                <img
+              <div className="aspect-square relative">
+                <Image
                   src={asset.url}
                   alt={asset.filename}
-                  className="w-full h-full object-cover"
+                  fill
+                  sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 25vw"
+                  className="object-cover"
                 />
               </div>
 
