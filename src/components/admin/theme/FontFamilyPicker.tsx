@@ -61,6 +61,12 @@ export default function FontFamilyPicker({ value, onChange, usage }: Props) {
     link.rel = 'stylesheet';
     link.href = url;
     document.head.appendChild(link);
+    // Inject dello stylesheet Google Fonts nel <head>: side effect
+    // sul DOM esterno (platform API). setFontsLoaded qui sincronizza
+    // lo stato React con il fatto che la risorsa esterna e' stata
+    // richiesta — caso d'uso legittimo di useEffect, la regola
+    // set-state-in-effect e' un falso positivo.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setFontsLoaded(true);
 
     return () => {

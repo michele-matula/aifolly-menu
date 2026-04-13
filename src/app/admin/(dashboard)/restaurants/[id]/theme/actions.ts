@@ -84,9 +84,9 @@ export async function applyPreset(
     await prisma.restaurant.update({
       where: { id: restaurantId },
       data: {
-        themeCoverDraft: cover as any,
-        themeMenuDraft: menu as any,
-        themeDishDraft: dish as any,
+        themeCoverDraft: cover as unknown as Prisma.InputJsonValue,
+        themeMenuDraft: menu as unknown as Prisma.InputJsonValue,
+        themeDishDraft: dish as unknown as Prisma.InputJsonValue,
       },
     });
 

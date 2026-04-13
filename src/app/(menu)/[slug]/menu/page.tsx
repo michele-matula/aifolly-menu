@@ -208,7 +208,7 @@ export default async function MenuPageRoute({ params, searchParams }: Props) {
         `}</style>
 
         {/* Grain texture */}
-        {(theme.menu as any).showGrainTexture && (
+        {theme.menu.showGrainTexture && (
           <div
             style={{
               position: 'fixed',

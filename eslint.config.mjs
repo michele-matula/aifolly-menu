@@ -12,6 +12,18 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Vitest coverage output (generato): non e' codice nostro.
+    "coverage/**",
+    // Prototipi di riferimento per il design del menu pubblico
+    // (docs/references/*.jsx, seed-presets.ts). Snapshot esterni
+    // che non vengono importati in runtime, non vogliamo che le
+    // loro scelte vincolino le regole lint del prodotto.
+    "docs/**",
+    // Script di generazione dati (seed, migrazioni). Eseguiti solo
+    // via `tsx prisma/seed.ts` o dal Prisma CLI, non bundlati nel
+    // runtime Next. I cast su payload JSON di Prisma sono comuni
+    // e tiparli come Prisma.InputJsonValue e' churn senza valore.
+    "prisma/**",
   ]),
 ]);
 

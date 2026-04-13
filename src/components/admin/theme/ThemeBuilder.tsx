@@ -43,6 +43,13 @@ export default function ThemeBuilder({
   const timerRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   useEffect(() => {
+    // Pattern hydration Next: il flag `mounted` evita FOUC/mismatch
+    // tra render server e client per elementi che dipendono da
+    // state client-only (iframe key, scroll, ecc.). La regola
+    // set-state-in-effect ha qui un falso positivo: questo e'
+    // esattamente l'uso legittimo di useEffect per sincronizzare
+    // lo stato React con l'ambiente (client montato).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
     return () => {
       Object.values(timerRef.current).forEach(clearTimeout);
