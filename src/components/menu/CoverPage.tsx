@@ -21,13 +21,8 @@ interface CoverPageProps {
 }
 
 export default function CoverPage({ restaurant, theme }: CoverPageProps) {
-  const [loaded, setLoaded] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);
   const coverOpenedAt = useRef<number>(0);
-
-  useEffect(() => {
-    setTimeout(() => setLoaded(true), 100);
-  }, []);
 
   // Tracking: copertina aperta. `detectSource()` legge ?source=qr,
   // referrer, ecc. `markCoverVisited()` persiste in sessionStorage per

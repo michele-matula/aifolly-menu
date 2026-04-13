@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   CURATED_FONTS,
   type CuratedFont,
@@ -31,9 +31,13 @@ export default function FontFamilyPicker({ value, onChange, usage }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const availableFonts = usage
-    ? CURATED_FONTS.filter(f => f.usage === usage || f.usage === 'both')
-    : [...CURATED_FONTS];
+  const availableFonts = useMemo(
+    () =>
+      usage
+        ? CURATED_FONTS.filter(f => f.usage === usage || f.usage === 'both')
+        : [...CURATED_FONTS],
+    [usage],
+  );
 
   const filtered = search
     ? availableFonts.filter(f =>

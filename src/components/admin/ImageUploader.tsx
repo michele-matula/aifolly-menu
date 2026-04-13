@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
+import Image from 'next/image';
 import { ACCEPTED_MIME_TYPES, MAX_FILE_SIZE } from '@/lib/validators/upload';
 
 type Props = {
@@ -128,11 +129,13 @@ export default function ImageUploader({
       {value ? (
         /* Preview con azioni */
         <div className="relative group">
-          <div className={`relative overflow-hidden rounded-md border border-[#e7e5e4] bg-[#fafaf9] ${aspectClass}`}>
-            <img
+          <div className={`relative overflow-hidden rounded-md border border-[#e7e5e4] bg-[#fafaf9] ${aspectClass || 'max-h-48 aspect-[4/3]'}`}>
+            <Image
               src={value}
               alt="Preview"
-              className={`w-full h-full object-cover ${aspectClass ? '' : 'max-h-48'}`}
+              fill
+              sizes="(max-width: 768px) 100vw, 50vw"
+              className="object-cover"
             />
             {/* Overlay con azioni */}
             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center gap-3 opacity-0 group-hover:opacity-100">

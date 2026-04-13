@@ -17,7 +17,6 @@ type Props = {
   restaurantId: string;
   slug: string;
   initialTheme: { cover: CoverTheme; menu: MenuTheme; dish: DishTheme };
-  liveTheme: { cover: CoverTheme; menu: MenuTheme; dish: DishTheme };
   hasDraft: boolean;
   presets: PresetData[];
 };
@@ -26,7 +25,6 @@ export default function ThemeBuilder({
   restaurantId,
   slug,
   initialTheme,
-  liveTheme,
   hasDraft: initialHasDraft,
   presets,
 }: Props) {

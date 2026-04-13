@@ -65,12 +65,6 @@ export default async function ThemePage({ params }: Props) {
     dish: (restaurant.themeDishDraft ?? restaurant.themeDish) as DishTheme,
   };
 
-  const liveTheme = {
-    cover: restaurant.themeCover as CoverTheme,
-    menu: restaurant.themeMenu as MenuTheme,
-    dish: restaurant.themeDish as DishTheme,
-  };
-
   const hasDraft = !!(
     restaurant.themeCoverDraft ||
     restaurant.themeMenuDraft ||
@@ -82,7 +76,6 @@ export default async function ThemePage({ params }: Props) {
       restaurantId={restaurant.id}
       slug={restaurant.slug}
       initialTheme={workingTheme}
-      liveTheme={liveTheme}
       hasDraft={hasDraft}
       presets={mappedPresets}
     />

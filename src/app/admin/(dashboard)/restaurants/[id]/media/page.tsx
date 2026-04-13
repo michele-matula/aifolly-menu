@@ -28,7 +28,6 @@ export default async function MediaPage({ params }: Props) {
 
   return (
     <MediaLibrary
-      restaurantId={id}
       initialAssets={serialized}
       totalSize={totalSize}
     />
