@@ -10,6 +10,7 @@
     "create-user": "tsx scripts/create-user.ts",
     "assign-restaurant": "tsx scripts/assign-restaurant.ts",
     "create-restaurant": "tsx scripts/create-restaurant.ts",
+    "create-super-admin": "tsx scripts/create-super-admin.ts",
     "migrate-seed-images": "tsx scripts/migrate-seed-images.ts",
     "test": "vitest",
     "test:run": "vitest run",
