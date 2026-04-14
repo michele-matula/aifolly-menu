@@ -19,13 +19,20 @@ model User {
   emailVerified DateTime?
   image         String?
 
-  accounts      Account[]
-  sessions      Session[]
-  restaurants   UserRestaurant[]
+  // Super Admin: concetto globale, non legato a un UserRestaurant (spec §11.2)
+  isSuperAdmin Boolean @default(false)
+
+  // Email verification flow (signup self-service)
+  emailVerificationToken          String?   @unique
+  emailVerificationTokenExpiresAt DateTime?
+
+  accounts         Account[]
+  sessions         Session[]
+  restaurants      UserRestaurant[]
   ownedRestaurants Restaurant[]
 
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // ── NextAuth v5 standard models ─────────────────────────────
@@ -44,7 +51,7 @@ model Account {
   id_token          String? @db.Text
   session_state     String?
 
-  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
 }
@@ -55,7 +62,7 @@ model Session {
   userId       String
   expires      DateTime
 
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model VerificationToken {
@@ -67,15 +74,15 @@ model VerificationToken {
 }
 
 model UserRestaurant {
-  id            String    @id @default(cuid())
-  userId        String
-  restaurantId  String
-  role          UserRole  @default(OWNER)
+  id           String   @id @default(cuid())
+  userId       String
+  restaurantId String
+  role         UserRole @default(OWNER)
 
-  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  restaurant    Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
 
-  createdAt     DateTime   @default(now())
+  createdAt DateTime @default(now())
 
   @@unique([userId, restaurantId])
   @@index([restaurantId])
@@ -90,60 +97,63 @@ enum UserRole {
 // ── Ristorante ──────────────────────────────────────────────
 
 model Restaurant {
-  id          String     @id @default(cuid())
+  id          String  @id @default(cuid())
   name        String
-  slug        String     @unique
+  slug        String  @unique
   tagline     String?
   description String?
   logoUrl     String?
   coverUrl    String?
 
   // Indirizzo
-  address     String?
-  city        String?
-  province    String?
-  country     String     @default("IT")
+  address  String?
+  city     String?
+  province String?
+  country  String  @default("IT")
 
   // Contatti
-  phone       String?
-  email       String?
-  website     String?
+  phone   String?
+  email   String?
+  website String?
 
   // ── TEMA PERSONALIZZATO (3 livelli) ──
-  themeCover    Json     @default("{}")
-  themeMenu     Json     @default("{}")
-  themeDish     Json     @default("{}")
-  themePreset   String?
+  themeCover  Json    @default("{}")
+  themeMenu   Json    @default("{}")
+  themeDish   Json    @default("{}")
+  themePreset String?
 
   // Tema bozza (modifiche non ancora pubblicate)
-  themeCoverDraft  Json?
-  themeMenuDraft   Json?
-  themeDishDraft   Json?
+  themeCoverDraft Json?
+  themeMenuDraft  Json?
+  themeDishDraft  Json?
 
   // Info servizio
-  coverCharge    Decimal?  @db.Decimal(4,2)
-  serviceNote    String?
-  allergenNote   String?
+  coverCharge  Decimal? @db.Decimal(4, 2)
+  serviceNote  String?
+  allergenNote String?
 
   // Stato
-  isActive    Boolean    @default(true)
-  isPublished Boolean    @default(false)
-  isSuspended Boolean    @default(false)
-  suspendedAt DateTime?
+  isActive        Boolean   @default(true)
+  isPublished     Boolean   @default(false)
+  isSuspended     Boolean   @default(false)
+  suspendedAt     DateTime?
   suspendedReason String?
 
+  // Free trial 15gg: settato alla creazione ristorante; null quando piano paid attivo o Free Perenne
+  trialEndsAt DateTime?
+
   // Ownership
-  ownerId     String?
-  owner       User?      @relation(fields: [ownerId], references: [id])
+  ownerId String?
+  owner   User?   @relation(fields: [ownerId], references: [id])
 
   // Piano e fatturazione
-  planId      String?
-  plan        Plan?      @relation(fields: [planId], references: [id])
+  planId String?
+  plan   Plan?   @relation(fields: [planId], references: [id])
 
   // Stripe
-  stripeCustomerId      String?  @unique
-  stripeSubscriptionId  String?  @unique
-  stripeSubscriptionStatus String?
+  stripeCustomerId             String?   @unique
+  stripeSubscriptionId         String?   @unique
+  stripeSubscriptionStatus     String?
   subscriptionCurrentPeriodEnd DateTime?
 
   // Relazioni
@@ -154,8 +164,8 @@ model Restaurant {
   auditLogs     AuditLog[]
   mediaAssets   MediaAsset[]
 
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([slug])
   @@index([ownerId])
@@ -171,7 +181,7 @@ enum MediaKind {
 }
 
 model MediaAsset {
-  id           String     @id @default(cuid())
+  id           String    @id @default(cuid())
   restaurantId String
   kind         MediaKind
   url          String
@@ -181,9 +191,9 @@ model MediaAsset {
   sizeBytes    Int
   width        Int?
   height       Int?
-  createdAt    DateTime   @default(now())
+  createdAt    DateTime  @default(now())
 
-  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
 
   @@index([restaurantId])
   @@index([restaurantId, kind])
@@ -192,60 +202,66 @@ model MediaAsset {
 // ── Piani e Subscription ────────────────────────────────────
 
 model Plan {
-  id              String    @id @default(cuid())
-  name            String
-  slug            String    @unique
-  maxDishes       Int       @default(20)
-  maxCategories   Int       @default(5)
-  maxImages       Int       @default(10)
-  customTheme     Boolean   @default(false)
-  googleFonts     Boolean   @default(false)
-  removeBranding  Boolean   @default(false)
-  analytics       Boolean   @default(false)
-  priceMonthly    Decimal   @db.Decimal(6,2)
-  priceYearly     Decimal?  @db.Decimal(6,2)
-  isActive        Boolean   @default(true)
+  id             String   @id @default(cuid())
+  name           String
+  slug           String   @unique
+  maxDishes      Int      @default(20)
+  maxCategories  Int      @default(5)
+  maxImages      Int      @default(10)
+  customTheme    Boolean  @default(false)
+  googleFonts    Boolean  @default(false)
+  removeBranding Boolean  @default(false)
+  analytics      Boolean  @default(false)
+  priceMonthly   Decimal  @db.Decimal(6, 2)
+  priceYearly    Decimal? @db.Decimal(6, 2)
+  isActive       Boolean  @default(true)
 
-  restaurants     Restaurant[]
+  // Stripe Price ID (null per piani free: free-trial, free-eternal)
+  stripePriceId String? @unique
 
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  // Free Perenne: assegnabile solo da Super Admin a tenant specifici (pilot/partner/demo)
+  isFreeEternal Boolean @default(false)
+
+  restaurants Restaurant[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // ── Temi Preset ─────────────────────────────────────────────
 
 model ThemePreset {
-  id            String   @id @default(cuid())
-  slug          String   @unique
-  name          String
-  description   String?
-  thumbnailUrl  String?
-  category      String   @default("all")
-  sortOrder     Int      @default(0)
-  isActive      Boolean  @default(true)
+  id           String  @id @default(cuid())
+  slug         String  @unique
+  name         String
+  description  String?
+  thumbnailUrl String?
+  category     String  @default("all")
+  sortOrder    Int     @default(0)
+  isActive     Boolean @default(true)
 
-  coverConfig   Json
-  menuConfig    Json
-  dishConfig    Json
+  coverConfig Json
+  menuConfig  Json
+  dishConfig  Json
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // ── Inviti ───────────────────────────────────────────────────
 
 model Invitation {
-  id            String    @id @default(cuid())
-  email         String
-  role          UserRole  @default(MANAGER)
-  token         String    @unique @default(cuid())
-  expiresAt     DateTime
-  acceptedAt    DateTime?
+  id         String    @id @default(cuid())
+  email      String
+  role       UserRole  @default(MANAGER)
+  token      String    @unique @default(cuid())
+  expiresAt  DateTime
+  acceptedAt DateTime?
 
-  restaurantId  String
-  restaurant    Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
 
-  createdAt     DateTime   @default(now())
+  createdAt DateTime @default(now())
 
   @@index([token])
   @@index([email])
@@ -254,16 +270,16 @@ model Invitation {
 // ── Token Preview Mobile ────────────────────────────────────
 
 model PreviewToken {
-  id            String    @id @default(cuid())
-  token         String    @unique @default(cuid())
-  expiresAt     DateTime
+  id        String   @id @default(cuid())
+  token     String   @unique @default(cuid())
+  expiresAt DateTime
 
-  restaurantId  String
-  restaurant    Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
 
   createdByUserId String
 
-  createdAt     DateTime   @default(now())
+  createdAt DateTime @default(now())
 
   @@index([token])
   @@index([restaurantId])
@@ -273,24 +289,24 @@ model PreviewToken {
 // ── Audit Log ───────────────────────────────────────────────
 
 model AuditLog {
-  id            String    @id @default(cuid())
+  id String @id @default(cuid())
 
-  actorUserId   String
-  actorEmail    String
-  actorRole     UserRole
+  actorUserId String
+  actorEmail  String
+  actorRole   UserRole
 
-  action        AuditAction
-  entityType    String
-  entityId      String?
+  action     AuditAction
+  entityType String
+  entityId   String?
 
-  restaurantId  String?
-  restaurant    Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: SetNull)
+  restaurantId String?
+  restaurant   Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: SetNull)
 
-  metadata      Json      @default("{}")
-  ipAddress     String?
-  userAgent     String?
+  metadata  Json    @default("{}")
+  ipAddress String?
+  userAgent String?
 
-  createdAt     DateTime  @default(now())
+  createdAt DateTime @default(now())
 
   @@index([actorUserId])
   @@index([restaurantId])
@@ -303,6 +319,7 @@ enum AuditAction {
   TENANT_REACTIVATED
   TENANT_DELETED
   TENANT_PLAN_CHANGED
+  TENANT_TRIAL_EXTENDED
   TENANT_IMPERSONATED
   PLAN_CREATED
   PLAN_UPDATED
@@ -320,18 +337,24 @@ enum AuditAction {
   LOGIN_SUCCESS
   LOGIN_FAILED
   PASSWORD_CHANGED
+  SIGNUP_COMPLETED
+  EMAIL_VERIFIED
+  STRIPE_CHECKOUT_COMPLETED
+  STRIPE_SUBSCRIPTION_UPDATED
+  STRIPE_SUBSCRIPTION_CANCELED
+  STRIPE_PAYMENT_FAILED
 }
 
 // ── Impersonazione Super Admin ──────────────────────────────
 
 model SuperAdminImpersonation {
-  id                String    @id @default(cuid())
-  superAdminUserId  String
-  targetUserId      String
+  id                 String    @id @default(cuid())
+  superAdminUserId   String
+  targetUserId       String
   targetRestaurantId String
-  startedAt         DateTime  @default(now())
-  endedAt           DateTime?
-  reason            String
+  startedAt          DateTime  @default(now())
+  endedAt            DateTime?
+  reason             String
 
   @@index([superAdminUserId])
   @@index([targetUserId])
@@ -341,20 +364,20 @@ model SuperAdminImpersonation {
 // ── Categorie ───────────────────────────────────────────────
 
 model Category {
-  id           String     @id @default(cuid())
-  name         String
-  slug         String
-  description  String?
-  icon         String?
-  sortOrder    Int        @default(0)
-  isVisible    Boolean    @default(true)
+  id          String  @id @default(cuid())
+  name        String
+  slug        String
+  description String?
+  icon        String?
+  sortOrder   Int     @default(0)
+  isVisible   Boolean @default(true)
 
   restaurantId String
   restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   dishes       Dish[]
 
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([restaurantId, slug])
   @@index([restaurantId, sortOrder])
@@ -363,30 +386,30 @@ model Category {
 // ── Piatti ───────────────────────────────────────────────────
 
 model Dish {
-  id           String     @id @default(cuid())
-  name         String
-  description  String?
-  imageUrl     String?
+  id          String  @id @default(cuid())
+  name        String
+  description String?
+  imageUrl    String?
 
-  price        Decimal?   @db.Decimal(6,2)
-  priceLabel   String?
-  variants     PriceVariant[]
+  price      Decimal?       @db.Decimal(6, 2)
+  priceLabel String?
+  variants   PriceVariant[]
 
   tags         DishTag[]  @default([])
   allergens    Allergen[] @default([])
   isChefChoice Boolean    @default(false)
 
-  sortOrder    Int        @default(0)
-  isAvailable  Boolean    @default(true)
-  isVisible    Boolean    @default(true)
+  sortOrder   Int     @default(0)
+  isAvailable Boolean @default(true)
+  isVisible   Boolean @default(true)
 
-  categoryId   String
-  category     Category   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 
   translations DishTranslation[]
 
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([categoryId, sortOrder])
 }
@@ -394,13 +417,13 @@ model Dish {
 // ── Varianti Prezzo ─────────────────────────────────────────
 
 model PriceVariant {
-  id        String   @id @default(cuid())
+  id        String  @id @default(cuid())
   label     String
-  price     Decimal  @db.Decimal(6,2)
-  sortOrder Int      @default(0)
+  price     Decimal @db.Decimal(6, 2)
+  sortOrder Int     @default(0)
 
-  dishId    String
-  dish      Dish     @relation(fields: [dishId], references: [id], onDelete: Cascade)
+  dishId String
+  dish   Dish   @relation(fields: [dishId], references: [id], onDelete: Cascade)
 
   @@index([dishId, sortOrder])
 }
@@ -408,9 +431,9 @@ model PriceVariant {
 // ── Predisposizione Multilingua (v2) ────────────────────────
 
 model DishTranslation {
-  id          String   @id @default(cuid())
+  id          String  @id @default(cuid())
   dishId      String
-  dish        Dish     @relation(fields: [dishId], references: [id], onDelete: Cascade)
+  dish        Dish    @relation(fields: [dishId], references: [id], onDelete: Cascade)
   locale      String
   name        String
   description String?

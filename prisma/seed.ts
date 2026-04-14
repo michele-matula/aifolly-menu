@@ -333,7 +333,27 @@ async function main() {
   // 1. Seed theme presets
   await seedPresets(prisma);
 
-  // 2. Create demo restaurant
+  // 2. Seed plans (valori placeholder: Super Admin li modifica via UI dal 6a.10).
+  // `update: {}` preserva modifiche runtime fatte dal Super Admin.
+  console.log('Creating plans...');
+  const plans = [
+    { slug: 'free-trial',   name: 'Free Trial',   priceMonthly: 0,    maxDishes: 20, maxCategories: 5,  maxImages: 10, customTheme: false, googleFonts: false, removeBranding: false, analytics: false, isFreeEternal: false },
+    { slug: 'free-eternal', name: 'Free Perenne', priceMonthly: 0,    maxDishes: 20, maxCategories: 5,  maxImages: 10, customTheme: false, googleFonts: false, removeBranding: false, analytics: false, isFreeEternal: true  },
+    { slug: 'basic',        name: 'Basic',        priceMonthly: 0.01, maxDishes: 20, maxCategories: 5,  maxImages: 10, customTheme: false, googleFonts: false, removeBranding: false, analytics: false, isFreeEternal: false },
+    { slug: 'pro',          name: 'Pro',          priceMonthly: 0.01, maxDishes: 50, maxCategories: 10, maxImages: 30, customTheme: true,  googleFonts: true,  removeBranding: true,  analytics: true,  isFreeEternal: false },
+  ];
+  for (const p of plans) {
+    await prisma.plan.upsert({
+      where: { slug: p.slug },
+      update: {},
+      create: p,
+    });
+  }
+  console.log(`  + ${plans.length} plans\n`);
+
+  const freeEternal = await prisma.plan.findUniqueOrThrow({ where: { slug: 'free-eternal' } });
+
+  // 3. Create demo restaurant (collegato a Free Perenne: demo permanente, mai scade)
   console.log('Creating demo restaurant...');
   const restaurant = await prisma.restaurant.upsert({
     where: { slug: 'osteria-del-porto' },
@@ -354,6 +374,8 @@ async function main() {
       themePreset: 'elegante',
       isPublished: true,
       isActive: true,
+      planId: freeEternal.id,
+      trialEndsAt: null,
     },
     create: {
       name: 'Osteria del Porto',
@@ -373,22 +395,25 @@ async function main() {
       themePreset: 'elegante',
       isPublished: true,
       isActive: true,
+      planId: freeEternal.id,
     },
   });
   console.log(`  + ${restaurant.name} (${restaurant.slug})\n`);
 
-  // 3. Create demo owner and link to restaurant
+  // 4. Create demo owner (pre-verificato per non bloccare il flusso di testing in dev)
   console.log('Creating demo owner...');
   const demoUser = await prisma.user.upsert({
     where: { email: 'demo@aifolly.local' },
     update: {
       name: 'Demo Owner',
       passwordHash: hashSync('demo1234', 10),
+      emailVerified: new Date(),
     },
     create: {
       email: 'demo@aifolly.local',
       name: 'Demo Owner',
       passwordHash: hashSync('demo1234', 10),
+      emailVerified: new Date(),
     },
   });
   await prisma.restaurant.update({
@@ -397,7 +422,7 @@ async function main() {
   });
   console.log(`  + ${demoUser.name} (${demoUser.email}) → ${restaurant.slug}\n`);
 
-  // 4. Create categories and dishes
+  // 5. Create categories and dishes
   console.log('Creating categories and dishes...');
   const categoryKeys = Object.keys(MENU_DATA);
 
