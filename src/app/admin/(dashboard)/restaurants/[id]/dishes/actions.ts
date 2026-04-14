@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { requireOwnership } from '@/lib/auth-helpers';
 import { invalidateRestaurantPublic } from '@/lib/cache/restaurant';
+import { checkPlanLimit } from '@/lib/plan-limits';
 import { AdminDishSchema, type PriceVariantInputType } from '@/lib/validators/dish';
 import type { DishTag, Allergen } from '@prisma/client';
 
@@ -70,6 +71,15 @@ export async function createDish(
   formData: FormData,
 ): Promise<DishActionState> {
   const restaurant = await requireOwnership(restaurantId);
+
+  const quota = await checkPlanLimit(restaurantId, 'maxDishes');
+  if (!quota.allowed) {
+    return {
+      success: false,
+      error: `Hai raggiunto il limite di ${quota.limit} piatti previsto dal tuo piano. Passa a un piano superiore per crearne altri.`,
+    };
+  }
+
   const raw = parseFormData(formData);
 
   const result = AdminDishSchema.safeParse(raw);
