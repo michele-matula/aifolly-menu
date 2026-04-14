@@ -10,7 +10,18 @@ export async function getCurrentUser() {
   if (!session?.user?.id) {
     redirect('/admin/login');
   }
-  return session.user as { id: string; email: string; name?: string | null };
+  return session.user as { id: string; email: string; name?: string | null; isSuperAdmin: boolean };
+}
+
+// Guard per pagine e Server Actions del pannello Super Admin.
+// Redirige al login se l'utente non e' autenticato o non e' Super Admin.
+// Defense-in-depth oltre al gate in auth.config.ts (proxy middleware).
+export async function requireSuperAdmin() {
+  const user = await getCurrentUser();
+  if (!user.isSuperAdmin) {
+    redirect('/admin/login');
+  }
+  return user;
 }
 
 export interface RequireOwnershipOptions {

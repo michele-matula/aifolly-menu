@@ -8,8 +8,21 @@ export const authConfig: NextAuthConfig = {
   callbacks: {
     authorized({ auth, request: { nextUrl } }) {
       const isLoggedIn = !!auth?.user;
+      const isSuperAdmin = auth?.user?.isSuperAdmin === true;
+
       const isAdminRoute = nextUrl.pathname.startsWith('/admin');
       const isLoginPage = nextUrl.pathname === '/admin/login';
+      const isSuperRoute = nextUrl.pathname.startsWith('/super') || nextUrl.pathname.startsWith('/api/super');
+
+      // /super/* e /api/super/* richiedono isSuperAdmin nel token.
+      // Utenti non-super vengono rimandati alla home (un 404-style hard block,
+      // la pagina /super non deve essere scopribile da non-Super Admin).
+      if (isSuperRoute) {
+        if (!isLoggedIn || !isSuperAdmin) {
+          return Response.redirect(new URL('/admin/login', nextUrl));
+        }
+        return true;
+      }
 
       if (isAdminRoute && !isLoginPage && !isLoggedIn) {
         return false; // NextAuth redirects to signIn page
@@ -20,12 +33,14 @@ export const authConfig: NextAuthConfig = {
     jwt({ token, user }) {
       if (user) {
         token.id = user.id;
+        token.isSuperAdmin = user.isSuperAdmin ?? false;
       }
       return token;
     },
     session({ session, token }) {
       if (session.user && token.id) {
         session.user.id = token.id as string;
+        session.user.isSuperAdmin = token.isSuperAdmin ?? false;
       }
       return session;
     },

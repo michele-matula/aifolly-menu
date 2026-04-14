@@ -26,7 +26,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const valid = compareSync(credentials.password as string, user.passwordHash);
         if (!valid) return null;
 
-        return { id: user.id, email: user.email, name: user.name };
+        return {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          isSuperAdmin: user.isSuperAdmin,
+        };
       },
     }),
   ],
