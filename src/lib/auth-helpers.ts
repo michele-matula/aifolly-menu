@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { notFound } from 'next/navigation';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { getRestaurantAccessStatus } from '@/lib/access-status';
 import type { Restaurant } from '@prisma/client';
 
 export async function getCurrentUser() {
@@ -12,7 +13,18 @@ export async function getCurrentUser() {
   return session.user as { id: string; email: string; name?: string | null };
 }
 
-export async function requireOwnership(restaurantId: string) {
+export interface RequireOwnershipOptions {
+  // Default true: se il ristorante è in trial_expired o suspended, redirect a /admin/upgrade.
+  // Passa false per punti di ingresso che devono restare accessibili anche in stato bloccato
+  // (es. la pagina /admin/upgrade stessa, se mai carica dati del ristorante).
+  requireAccess?: boolean;
+}
+
+export async function requireOwnership(
+  restaurantId: string,
+  options: RequireOwnershipOptions = {}
+) {
+  const { requireAccess = true } = options;
   const user = await getCurrentUser();
 
   const restaurant = await prisma.restaurant.findUnique({
@@ -21,6 +33,13 @@ export async function requireOwnership(restaurantId: string) {
 
   if (!restaurant || restaurant.ownerId !== user.id) {
     notFound();
+  }
+
+  if (requireAccess) {
+    const access = await getRestaurantAccessStatus(restaurantId);
+    if (access.status === 'trial_expired' || access.status === 'suspended') {
+      redirect(`/admin/upgrade?restaurantId=${restaurantId}`);
+    }
   }
 
   return restaurant;

@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { getPublicRestaurant, getCachedPublicRestaurant } from '@/lib/queries/restaurant';
 import { tryGetOwnershipBySlug } from '@/lib/auth-helpers';
+import { deriveAccessStatus } from '@/lib/access-status';
 import type { FullTheme } from '@/lib/validators/theme';
 import ThemeProvider from '@/components/menu/ThemeProvider';
 import MenuFonts from '@/components/menu/MenuFonts';
@@ -10,6 +11,7 @@ import MenuContent from '@/components/menu/MenuContent';
 import MenuFooter from '@/components/menu/MenuFooter';
 import MenuViewTracker from '@/components/menu/MenuViewTracker';
 import RestaurantStructuredData from '@/components/menu/RestaurantStructuredData';
+import UnavailableRestaurant from '@/components/menu/UnavailableRestaurant';
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -70,6 +72,17 @@ export default async function MenuPageRoute({ params, searchParams }: Props) {
 
   if (!restaurant) {
     notFound();
+  }
+
+  const access = deriveAccessStatus({
+    isSuspended: restaurant.isSuspended,
+    suspendedReason: restaurant.suspendedReason,
+    trialEndsAt: restaurant.trialEndsAt,
+    stripeSubscriptionStatus: restaurant.stripeSubscriptionStatus,
+    plan: restaurant.plan,
+  });
+  if (access.status === 'trial_expired' || access.status === 'suspended') {
+    return <UnavailableRestaurant name={restaurant.name} />;
   }
 
   const useDraft =

@@ -21,10 +21,15 @@ export async function getPublicRestaurant(slug: string) {
           },
         },
       },
+      // Serve al caller per calcolare l'access status (trial_expired / suspended → pagina "Non disponibile")
+      plan: { select: { isFreeEternal: true } },
     },
   });
 
-  if (!restaurant || !restaurant.isPublished || restaurant.isSuspended || !restaurant.isActive) {
+  // Non esiste, non pubblicato, o disattivato → 404 puro.
+  // isSuspended e trial_expired restano visibili al caller (che puo' render
+  // una pagina "Ristorante temporaneamente non disponibile" invece di 404).
+  if (!restaurant || !restaurant.isPublished || !restaurant.isActive) {
     return null;
   }
 

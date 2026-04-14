@@ -2,10 +2,12 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { getPublicRestaurant, getCachedPublicRestaurant } from '@/lib/queries/restaurant';
 import { tryGetOwnershipBySlug } from '@/lib/auth-helpers';
+import { deriveAccessStatus } from '@/lib/access-status';
 import type { FullTheme } from '@/lib/validators/theme';
 import ThemeProvider from '@/components/menu/ThemeProvider';
 import MenuFonts from '@/components/menu/MenuFonts';
 import CoverPage from '@/components/menu/CoverPage';
+import UnavailableRestaurant from '@/components/menu/UnavailableRestaurant';
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -69,6 +71,19 @@ export default async function CoverPageRoute({ params, searchParams }: Props) {
 
   if (!restaurant) {
     notFound();
+  }
+
+  // Accesso negato (trial scaduto o ristorante sospeso) → pagina "non disponibile"
+  // invece di 404: il ristorante esiste, il pubblico va avvisato in modo esplicito.
+  const access = deriveAccessStatus({
+    isSuspended: restaurant.isSuspended,
+    suspendedReason: restaurant.suspendedReason,
+    trialEndsAt: restaurant.trialEndsAt,
+    stripeSubscriptionStatus: restaurant.stripeSubscriptionStatus,
+    plan: restaurant.plan,
+  });
+  if (access.status === 'trial_expired' || access.status === 'suspended') {
+    return <UnavailableRestaurant name={restaurant.name} />;
   }
 
   const useDraft =
