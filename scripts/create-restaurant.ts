@@ -66,6 +66,19 @@ async function main() {
       };
     }
 
+    // Free Trial di 15gg allineato al signup self-service: i ristoranti creati
+    // via CLI (pilot, demo manuali) iniziano con le stesse limitazioni temporali
+    // del signup UI. Super Admin puo' promuoverli a Free Perenne dal pannello.
+    const TRIAL_DAYS = 15;
+    const freeTrialPlan = await prisma.plan.findUnique({ where: { slug: 'free-trial' } });
+    if (!freeTrialPlan) {
+      console.error(
+        'Errore: piano "free-trial" non trovato nel DB. Esegui "npx prisma db seed" per creare i piani.'
+      );
+      process.exit(1);
+    }
+    const trialEndsAt = new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
+
     // Crea il ristorante
     const restaurant = await prisma.restaurant.create({
       data: {
@@ -84,6 +97,8 @@ async function main() {
             }
           : {}),
         ownerId: ownerId,
+        planId: freeTrialPlan.id,
+        trialEndsAt,
       },
     });
 
@@ -98,6 +113,7 @@ async function main() {
     if (args.preset) {
       console.log(`  Preset:  ${args.preset}`);
     }
+    console.log(`  Piano:   free-trial (trial scade: ${trialEndsAt.toISOString()})`);
   } catch (err: unknown) {
     if (err && typeof err === 'object' && 'code' in err && err.code === 'P2002') {
       console.error(`Errore: lo slug "${args.slug}" è già in uso.`);

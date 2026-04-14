@@ -35,11 +35,14 @@ async function main() {
   }
 
   try {
+    // CLI users sono pre-verificati: chi usa la CLI è già il Super Admin,
+    // non deve passare dal flusso di email verification del signup self-service.
     const user = await prisma.user.create({
       data: {
         email: args.email,
         passwordHash: hashSync(args.password, 10),
         name: args.name || null,
+        emailVerified: new Date(),
       },
     });
     console.log(`Utente creato: ${user.id} (${user.email})`);
