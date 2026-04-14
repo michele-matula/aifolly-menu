@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import type { CoverTheme, MenuTheme, DishTheme } from '@/lib/validators/theme';
 import ThemeBuilder from '@/components/admin/theme/ThemeBuilder';
 import EmptyThemeState from '@/components/admin/theme/EmptyThemeState';
+import PresetOnlyThemeState from '@/components/admin/theme/PresetOnlyThemeState';
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -20,6 +21,16 @@ function isJsonObjectEmpty(value: unknown): boolean {
 export default async function ThemePage({ params }: Props) {
   const { id } = await params;
   const restaurant = await requireOwnership(id);
+
+  // Plan.customTheme decide se mostrare il theme builder completo (true) o
+  // solo il preset picker (false, piani Basic/Free/Trial).
+  const plan = restaurant.planId
+    ? await prisma.plan.findUnique({
+        where: { id: restaurant.planId },
+        select: { customTheme: true },
+      })
+    : null;
+  const canCustomize = plan?.customTheme ?? false;
 
   const presets = await prisma.themePreset.findMany({
     where: { isActive: true },
@@ -57,6 +68,10 @@ export default async function ThemePage({ params }: Props) {
 
   if (isThemeEmpty) {
     return <EmptyThemeState restaurantId={restaurant.id} presets={mappedPresets} />;
+  }
+
+  if (!canCustomize) {
+    return <PresetOnlyThemeState restaurantId={restaurant.id} presets={mappedPresets} />;
   }
 
   const workingTheme = {

@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { requireOwnership } from '@/lib/auth-helpers';
 import { invalidateRestaurantPublic } from '@/lib/cache/restaurant';
+import { checkPlanLimit } from '@/lib/plan-limits';
 import { AdminCreateCategorySchema, AdminUpdateCategorySchema } from '@/lib/validators/category';
 
 export type CategoryActionState = {
@@ -33,6 +34,14 @@ export async function createCategory(
   formData: FormData,
 ): Promise<CategoryActionState> {
   const restaurant = await requireOwnership(restaurantId);
+
+  const quota = await checkPlanLimit(restaurantId, 'maxCategories');
+  if (!quota.allowed) {
+    return {
+      success: false,
+      error: `Hai raggiunto il limite di ${quota.limit} categorie previsto dal tuo piano. Passa a un piano superiore per crearne altre.`,
+    };
+  }
 
   const raw = {
     name: formData.get('name') as string,

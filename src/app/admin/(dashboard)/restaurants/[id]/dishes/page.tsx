@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { requireOwnership } from '@/lib/auth-helpers';
 import { prisma } from '@/lib/prisma';
+import { checkPlanLimit } from '@/lib/plan-limits';
 import DishesList from '@/components/admin/DishesList';
 import DishesToolbar from '@/components/admin/DishesToolbar';
 
@@ -44,6 +45,8 @@ export default async function DishesPage({ params, searchParams }: Props) {
   const totalDishes = dishes.length;
   const totalCategories = new Set(dishes.map(d => d.category.id)).size;
 
+  const dishQuota = await checkPlanLimit(id, 'maxDishes');
+
   const serialized = dishes.map(d => ({
     id: d.id,
     name: d.name,
@@ -63,7 +66,12 @@ export default async function DishesPage({ params, searchParams }: Props) {
       {/* Header */}
       <div className="flex items-start justify-between gap-4 mb-6">
         <div>
-          <h2 className="text-lg font-semibold text-[#1c1917]">Piatti</h2>
+          <h2 className="text-lg font-semibold text-[#1c1917]">
+            Piatti{' '}
+            <span className="text-sm font-normal text-[#a8a29e]">
+              {dishQuota.current}/{dishQuota.limit}
+            </span>
+          </h2>
           <p className="text-sm text-[#78716c] mt-0.5">
             {totalDishes === 0
               ? 'Nessun piatto ancora.'
@@ -71,12 +79,22 @@ export default async function DishesPage({ params, searchParams }: Props) {
             {sp.category ? '. Trascina per riordinare.' : ''}
           </p>
         </div>
-        <Link
-          href={`/admin/restaurants/${id}/dishes/new${sp.category ? `?category=${sp.category}` : ''}`}
-          className="shrink-0 px-4 py-2 text-[13px] font-medium text-white bg-[#c9b97a] rounded-md hover:bg-[#b5a468] transition-colors no-underline"
-        >
-          + Nuovo piatto
-        </Link>
+        {dishQuota.allowed ? (
+          <Link
+            href={`/admin/restaurants/${id}/dishes/new${sp.category ? `?category=${sp.category}` : ''}`}
+            className="shrink-0 px-4 py-2 text-[13px] font-medium text-white bg-[#c9b97a] rounded-md hover:bg-[#b5a468] transition-colors no-underline"
+          >
+            + Nuovo piatto
+          </Link>
+        ) : (
+          <Link
+            href={`/admin/upgrade?restaurantId=${id}`}
+            className="shrink-0 px-4 py-2 text-[13px] font-medium text-stone-700 bg-stone-100 border border-stone-200 rounded-md hover:bg-stone-50 transition-colors no-underline"
+            title="Limite piatti del piano raggiunto"
+          >
+            Quota esaurita — passa al piano superiore →
+          </Link>
+        )}
       </div>
 
       {/* Toolbar */}
