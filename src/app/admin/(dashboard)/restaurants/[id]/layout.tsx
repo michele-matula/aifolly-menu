@@ -1,7 +1,10 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
 import { requireOwnership } from '@/lib/auth-helpers';
+import { getRestaurantAccessStatus } from '@/lib/access-status';
+import { prisma } from '@/lib/prisma';
 import RestaurantTabs from '@/components/admin/RestaurantTabs';
+import PlanStatusBar from '@/components/admin/PlanStatusBar';
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -17,6 +20,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function RestaurantLayout({ params, children }: Props) {
   const { id } = await params;
   const restaurant = await requireOwnership(id);
+
+  // Il badge piano attivo (sidebar per-ristorante) e' sempre visibile al ristoratore.
+  // Se siamo arrivati qui, requireOwnership ha gia' filtrato trial_expired/suspended
+  // → il badge mostra 'ok' o 'trial' con countdown e CTA upgrade.
+  const access = await getRestaurantAccessStatus(id);
+  const plan = restaurant.planId
+    ? await prisma.plan.findUnique({ where: { id: restaurant.planId }, select: { name: true, slug: true } })
+    : null;
 
   return (
     <div>
@@ -49,6 +60,13 @@ export default async function RestaurantLayout({ params, children }: Props) {
           <p className="text-sm text-[#78716c] mt-1">{restaurant.city}</p>
         )}
       </div>
+
+      <PlanStatusBar
+        restaurantId={id}
+        planName={plan?.name ?? null}
+        planSlug={plan?.slug ?? null}
+        access={access}
+      />
 
       {/* Tabs */}
       <RestaurantTabs restaurantId={id} />
