@@ -8,12 +8,13 @@ import GoogleButton from '@/app/signup/google-button';
 export default function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [email, setEmail] = useState('');
+  const callbackUrl = searchParams.get('callbackUrl') || '/admin';
+  const prefillEmail = searchParams.get('email') || '';
+
+  const [email, setEmail] = useState(prefillEmail);
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-
-  const callbackUrl = searchParams.get('callbackUrl') || '/admin';
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

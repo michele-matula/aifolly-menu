@@ -48,6 +48,9 @@ export async function requireOwnership(
 
   if (requireAccess) {
     const access = await getRestaurantAccessStatus(restaurantId);
+    if (access.status === 'email_unverified') {
+      redirect(`/signup/pending?email=${encodeURIComponent(user.email)}`);
+    }
     if (access.status === 'trial_expired' || access.status === 'suspended') {
       redirect(`/admin/upgrade?restaurantId=${restaurantId}`);
     }

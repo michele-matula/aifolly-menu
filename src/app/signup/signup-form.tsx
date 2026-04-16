@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import GoogleButton from './google-button';
 import { toSlug } from '@/lib/slug-suggest';
 import { signupRestaurant } from './actions';
@@ -9,7 +8,6 @@ import { signupRestaurant } from './actions';
 type FieldErrors = Partial<Record<string, string>>;
 
 export default function SignupForm() {
-  const router = useRouter();
   const [restaurantName, setRestaurantName] = useState('');
   const [ownerName, setOwnerName] = useState('');
   const [email, setEmail] = useState('');
@@ -76,6 +74,8 @@ export default function SignupForm() {
     setGlobalError('');
     setLoading(true);
 
+    // On success the server action calls redirect() — no return value.
+    // On validation/business error it returns { error }.
     const result = await signupRestaurant({
       restaurantName,
       ownerName,
@@ -86,16 +86,13 @@ export default function SignupForm() {
 
     setLoading(false);
 
-    if (result.error) {
+    if (result?.error) {
       if (result.fieldErrors) {
         setFieldErrors(result.fieldErrors);
       } else {
         setGlobalError(result.error);
       }
-      return;
     }
-
-    router.push('/signup/pending?email=' + encodeURIComponent(email));
   }
 
   const inputStyle: React.CSSProperties = {
