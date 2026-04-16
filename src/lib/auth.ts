@@ -1,5 +1,6 @@
 import NextAuth from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
+import Google from 'next-auth/providers/google';
 import { PrismaAdapter } from '@auth/prisma-adapter';
 import { compareSync } from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
@@ -34,5 +35,38 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         };
       },
     }),
+    // Link automatico via email: se un utente Credentials esistente prova a
+    // loggarsi con Google sulla stessa email, l'Account Google viene linkato
+    // allo User esistente invece di rifiutare. Rischio phishing minimo perche'
+    // Google certifica la verifica dell'email (vedi profile.email_verified).
+    Google({
+      allowDangerousEmailAccountLinking: true,
+      profile(profile) {
+        return {
+          id: profile.sub,
+          email: profile.email,
+          name: profile.name,
+          image: profile.picture,
+          // Google ha gia' verificato l'email: saltiamo il flow Resend.
+          emailVerified: profile.email_verified ? new Date() : null,
+          isSuperAdmin: false,
+        };
+      },
+    }),
   ],
+  events: {
+    // Quando un Account Google viene linkato a uno User esistente che era
+    // stato creato via Credentials o CLI con emailVerified=null, promuoviamo
+    // la verifica: Google l'ha appena certificata.
+    async linkAccount({ user, account, profile }) {
+      if (account.provider !== 'google') return;
+      const googleVerified = (profile as { email_verified?: boolean } | undefined)?.email_verified;
+      if (!googleVerified) return;
+      if (!user.id) return;
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { emailVerified: new Date() },
+      });
+    },
+  },
 });
