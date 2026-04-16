@@ -55,13 +55,25 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   events: {
+    // PrismaAdapter non persiste emailVerified dal profile() per nuovi utenti
+    // OAuth. Lo promuoviamo qui quando l'Account Google viene creato.
+    async createUser({ user }) {
+      if (!user.id) return;
+      const account = await prisma.account.findFirst({
+        where: { userId: user.id, provider: 'google' },
+      });
+      if (account) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { emailVerified: new Date() },
+        });
+      }
+    },
     // Quando un Account Google viene linkato a uno User esistente che era
     // stato creato via Credentials o CLI con emailVerified=null, promuoviamo
     // la verifica: Google l'ha appena certificata.
-    async linkAccount({ user, account, profile }) {
+    async linkAccount({ user, account }) {
       if (account.provider !== 'google') return;
-      const googleVerified = (profile as { email_verified?: boolean } | undefined)?.email_verified;
-      if (!googleVerified) return;
       if (!user.id) return;
       await prisma.user.update({
         where: { id: user.id },

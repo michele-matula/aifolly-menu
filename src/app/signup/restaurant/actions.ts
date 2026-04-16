@@ -1,5 +1,6 @@
 'use server';
 
+import { redirect } from 'next/navigation';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { RestaurantOnboardingSchema } from '@/lib/validators/signup';
@@ -71,5 +72,5 @@ export async function completeGoogleSignup(input: {
     });
   });
 
-  return {};
+  redirect('/admin');
 }

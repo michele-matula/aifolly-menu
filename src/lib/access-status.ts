@@ -4,7 +4,8 @@ export type AccessStatus =
   | { status: 'ok' }
   | { status: 'trial'; trialEndsAt: Date; daysLeft: number }
   | { status: 'trial_expired' }
-  | { status: 'suspended'; reason: string | null };
+  | { status: 'suspended'; reason: string | null }
+  | { status: 'email_unverified' };
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
@@ -54,10 +55,16 @@ export async function getRestaurantAccessStatus(restaurantId: string): Promise<A
       trialEndsAt: true,
       stripeSubscriptionStatus: true,
       plan: { select: { isFreeEternal: true } },
+      owner: { select: { emailVerified: true } },
     },
   });
 
   if (!r) throw new Error(`Restaurant ${restaurantId} not found`);
+
+  // Email non verificata ha priorità più alta di qualsiasi stato piano/trial
+  if (r.owner && !r.owner.emailVerified) {
+    return { status: 'email_unverified' };
+  }
 
   return deriveAccessStatus(r);
 }

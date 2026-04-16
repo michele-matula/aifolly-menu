@@ -1,6 +1,7 @@
 'use server';
 
 import { randomBytes } from 'crypto';
+import { redirect } from 'next/navigation';
 import { hashSync } from 'bcryptjs';
 import { headers } from 'next/headers';
 import { prisma } from '@/lib/prisma';
@@ -102,5 +103,5 @@ export async function signupRestaurant(input: {
     console.error('[signup] Email verification send failed:', err);
   }
 
-  return {};
+  redirect(`/signup/pending?email=${encodeURIComponent(email)}`);
 }

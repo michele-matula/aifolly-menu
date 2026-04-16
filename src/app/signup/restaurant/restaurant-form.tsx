@@ -1,14 +1,12 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { toSlug } from '@/lib/slug-suggest';
 import { completeGoogleSignup } from './actions';
 
 type FieldErrors = Partial<Record<string, string>>;
 
 export default function RestaurantForm() {
-  const router = useRouter();
   const [restaurantName, setRestaurantName] = useState('');
   const [slug, setSlug] = useState('');
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
@@ -71,21 +69,19 @@ export default function RestaurantForm() {
     setGlobalError('');
     setLoading(true);
 
+    // On success the server action calls redirect('/admin') — no return value.
+    // On validation/business error it returns { error }.
     const result = await completeGoogleSignup({ restaurantName, slug });
 
     setLoading(false);
 
-    if (result.error) {
+    if (result?.error) {
       if (result.fieldErrors) {
         setFieldErrors(result.fieldErrors);
       } else {
         setGlobalError(result.error);
       }
-      return;
     }
-
-    router.push('/admin');
-    router.refresh();
   }
 
   const inputStyle: React.CSSProperties = {
