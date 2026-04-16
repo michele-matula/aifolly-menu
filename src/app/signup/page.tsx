@@ -1,4 +1,5 @@
 import { Suspense } from 'react';
+import Link from 'next/link';
 import SignupForm from './signup-form';
 
 export default function SignupPage() {
@@ -34,9 +35,9 @@ export default function SignupPage() {
         }}
       >
         Hai già un account?{' '}
-        <a href="/admin/login" style={{ color: '#c9b97a', textDecoration: 'none' }}>
+        <Link href="/admin/login" style={{ color: '#c9b97a', textDecoration: 'none' }}>
           Accedi
-        </a>
+        </Link>
       </p>
     </>
   );

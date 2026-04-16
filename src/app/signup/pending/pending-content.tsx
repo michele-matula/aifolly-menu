@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 
 export default function PendingContent() {
   const searchParams = useSearchParams();
@@ -136,9 +137,9 @@ export default function PendingContent() {
           marginBottom: 0,
         }}
       >
-        <a href="/admin/login" style={{ color: '#c9b97a', textDecoration: 'none' }}>
+        <Link href="/admin/login" style={{ color: '#c9b97a', textDecoration: 'none' }}>
           Torna al login
-        </a>
+        </Link>
       </p>
     </div>
   );

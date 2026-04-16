@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import LoginForm from './login-form';
 
 export const metadata: Metadata = {
@@ -65,9 +66,9 @@ export default function LoginPage() {
           }}
         >
           Non hai un account?{' '}
-          <a href="/signup" style={{ color: '#c9b97a', textDecoration: 'none' }}>
+          <Link href="/signup" style={{ color: '#c9b97a', textDecoration: 'none' }}>
             Registrati
-          </a>
+          </Link>
         </p>
       </div>
     </div>
