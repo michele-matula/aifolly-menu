@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import GoogleButton from '@/app/signup/google-button';
 
 export default function LoginForm() {
@@ -101,12 +102,20 @@ export default function LoginForm() {
 
       {/* Password */}
       <div style={{ marginBottom: 24 }}>
-        <label
-          htmlFor="password"
-          style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#6b6358', marginBottom: 6 }}
-        >
-          Password
-        </label>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
+          <label
+            htmlFor="password"
+            style={{ fontSize: 12, fontWeight: 500, color: '#6b6358' }}
+          >
+            Password
+          </label>
+          <Link
+            href="/admin/forgot-password"
+            style={{ fontSize: 11, color: '#a19686', textDecoration: 'none' }}
+          >
+            Password dimenticata?
+          </Link>
+        </div>
         <input
           id="password"
           type="password"

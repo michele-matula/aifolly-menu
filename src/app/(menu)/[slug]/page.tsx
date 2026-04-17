@@ -8,6 +8,7 @@ import ThemeProvider from '@/components/menu/ThemeProvider';
 import MenuFonts from '@/components/menu/MenuFonts';
 import CoverPage from '@/components/menu/CoverPage';
 import UnavailableRestaurant from '@/components/menu/UnavailableRestaurant';
+import PreviewBanner from '@/components/menu/PreviewBanner';
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -98,6 +99,7 @@ export default async function CoverPageRoute({ params, searchParams }: Props) {
   return (
     <ThemeProvider theme={theme}>
       <MenuFonts theme={theme} />
+      {useDraft && <PreviewBanner />}
       <CoverPage
         restaurant={{
           name: restaurant.name,

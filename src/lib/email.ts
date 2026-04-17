@@ -1,7 +1,9 @@
 import { Resend } from 'resend';
 import { buildVerificationEmail } from '@/lib/email-templates/verification';
+import { buildPasswordResetEmail } from '@/lib/email-templates/password-reset';
 
 const VERIFICATION_TOKEN_TTL_HOURS = 24;
+const PASSWORD_RESET_TTL_MINUTES = 60;
 
 export class EmailDeliveryError extends Error {
   constructor(message: string, readonly cause?: unknown) {
@@ -66,6 +68,45 @@ export async function sendVerificationEmail(
     userName,
     verifyUrl,
     expiresInHours: VERIFICATION_TOKEN_TTL_HOURS,
+  });
+
+  const client = getResendClient();
+  const { data, error } = await client.emails.send({
+    from: getFromAddress(),
+    to,
+    subject,
+    html,
+    text,
+  });
+
+  if (error) {
+    throw new EmailDeliveryError(
+      `Resend ha rifiutato l'invio: ${error.message ?? 'errore sconosciuto'}`,
+      error
+    );
+  }
+  if (!data?.id) {
+    throw new EmailDeliveryError('Resend non ha restituito un id del messaggio.');
+  }
+  return { id: data.id };
+}
+
+type SendPasswordResetEmailInput = {
+  to: string;
+  token: string;
+  userName?: string | null;
+};
+
+export async function sendPasswordResetEmail(
+  input: SendPasswordResetEmailInput
+): Promise<SendVerificationEmailResult> {
+  const { to, token, userName } = input;
+  const resetUrl = `${getAppUrl()}/admin/reset-password?token=${encodeURIComponent(token)}`;
+
+  const { subject, html, text } = buildPasswordResetEmail({
+    userName,
+    resetUrl,
+    expiresInMinutes: PASSWORD_RESET_TTL_MINUTES,
   });
 
   const client = getResendClient();

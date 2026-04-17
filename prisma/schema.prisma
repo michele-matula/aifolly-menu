@@ -26,6 +26,10 @@ model User {
   emailVerificationToken          String?   @unique
   emailVerificationTokenExpiresAt DateTime?
 
+  // Password reset flow
+  passwordResetToken          String?   @unique
+  passwordResetTokenExpiresAt DateTime?
+
   accounts         Account[]
   sessions         Session[]
   restaurants      UserRestaurant[]
