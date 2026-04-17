@@ -11,7 +11,9 @@ export const authConfig: NextAuthConfig = {
       const isSuperAdmin = auth?.user?.isSuperAdmin === true;
 
       const isAdminRoute = nextUrl.pathname.startsWith('/admin');
-      const isLoginPage = nextUrl.pathname === '/admin/login';
+      const isAuthPage = nextUrl.pathname === '/admin/login'
+        || nextUrl.pathname === '/admin/forgot-password'
+        || nextUrl.pathname === '/admin/reset-password';
       const isSuperRoute = nextUrl.pathname.startsWith('/super') || nextUrl.pathname.startsWith('/api/super');
       const isSignupRoute = nextUrl.pathname.startsWith('/signup') || nextUrl.pathname.startsWith('/verify-email');
 
@@ -29,7 +31,7 @@ export const authConfig: NextAuthConfig = {
       // loggati senza Restaurant per completare l'onboarding Google)
       if (isSignupRoute) return true;
 
-      if (isAdminRoute && !isLoginPage && !isLoggedIn) {
+      if (isAdminRoute && !isAuthPage && !isLoggedIn) {
         return false; // NextAuth redirects to signIn page
       }
 

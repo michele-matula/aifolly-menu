@@ -12,6 +12,7 @@ import MenuFooter from '@/components/menu/MenuFooter';
 import MenuViewTracker from '@/components/menu/MenuViewTracker';
 import RestaurantStructuredData from '@/components/menu/RestaurantStructuredData';
 import UnavailableRestaurant from '@/components/menu/UnavailableRestaurant';
+import PreviewBanner from '@/components/menu/PreviewBanner';
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -123,6 +124,7 @@ export default async function MenuPageRoute({ params, searchParams }: Props) {
   return (
     <ThemeProvider theme={theme}>
       <MenuFonts theme={theme} />
+      {useDraft && <PreviewBanner />}
       <MenuViewTracker slug={slug} />
       {/* JSON-LD solo sul menu pubblico (non in modalità preview admin) */}
       {!useDraft && (

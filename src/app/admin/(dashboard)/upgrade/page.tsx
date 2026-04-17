@@ -130,14 +130,12 @@ export default async function UpgradePage({ searchParams }: Props) {
                     </li>
                   ))}
                 </ul>
-                <button
-                  type="button"
-                  disabled
-                  className="w-full px-4 py-2 rounded-md bg-stone-100 text-stone-400 text-sm font-medium cursor-not-allowed"
-                  title="Checkout disponibile a breve"
+                <a
+                  href="mailto:supporto@aifolly.com?subject=Upgrade%20piano%20{p.slug}"
+                  className="w-full block text-center px-4 py-2 rounded-md bg-[#1c1917] text-white text-sm font-medium hover:bg-[#292524] transition-colors no-underline"
                 >
-                  Sottoscrivi — in arrivo
-                </button>
+                  Contattaci per attivare
+                </a>
               </div>
             );
           })}
@@ -145,7 +143,8 @@ export default async function UpgradePage({ searchParams }: Props) {
       )}
 
       <p className="mt-8 text-xs text-[#a8a29e]">
-        Il checkout sicuro via Stripe sarà disponibile nel prossimo aggiornamento.
+        Il pagamento online sarà disponibile a breve. Nel frattempo puoi contattarci per
+        attivare il tuo piano.
       </p>
     </div>
   );
