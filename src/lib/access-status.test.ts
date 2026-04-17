@@ -15,7 +15,7 @@ describe('deriveAccessStatus', () => {
       ...base,
       isSuspended: true,
       suspendedReason: 'abuso',
-      plan: { isFreeEternal: true },
+      plan: { isFreeEternal: true, slug: 'free-eternal' },
       trialEndsAt: new Date(Date.now() + 1e9),
     });
     expect(r).toEqual({ status: 'suspended', reason: 'abuso' });
@@ -29,7 +29,7 @@ describe('deriveAccessStatus', () => {
   it('returns ok for Free Perenne even if trial expired', () => {
     const r = deriveAccessStatus({
       ...base,
-      plan: { isFreeEternal: true },
+      plan: { isFreeEternal: true, slug: 'free-eternal' },
       trialEndsAt: new Date(Date.now() - 1e9),
     });
     expect(r).toEqual({ status: 'ok' });
@@ -77,6 +77,22 @@ describe('deriveAccessStatus', () => {
   it('returns trial_expired for past trialEndsAt', () => {
     const r = deriveAccessStatus({ ...base, trialEndsAt: new Date(Date.now() - 1e9) });
     expect(r).toEqual({ status: 'trial_expired' });
+  });
+
+  it('returns ok for paid plan assigned by Super Admin (no Stripe yet)', () => {
+    const r = deriveAccessStatus({
+      ...base,
+      plan: { isFreeEternal: false, slug: 'basic' },
+    });
+    expect(r).toEqual({ status: 'ok' });
+  });
+
+  it('returns ok for pro plan assigned by Super Admin (no Stripe yet)', () => {
+    const r = deriveAccessStatus({
+      ...base,
+      plan: { isFreeEternal: false, slug: 'pro' },
+    });
+    expect(r).toEqual({ status: 'ok' });
   });
 
   it('defensive: no plan, no trial, no subscription → trial_expired', () => {

@@ -31,7 +31,7 @@ export default async function SuperTenantDetailPage({ params }: Props) {
     suspendedReason: tenant.suspendedReason,
     trialEndsAt: tenant.trialEndsAt,
     stripeSubscriptionStatus: tenant.stripeSubscriptionStatus,
-    plan: tenant.plan ? { isFreeEternal: tenant.plan.isFreeEternal } : null,
+    plan: tenant.plan ? { isFreeEternal: tenant.plan.isFreeEternal, slug: tenant.plan.slug } : null,
   });
 
   return (
