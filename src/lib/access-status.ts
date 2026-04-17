@@ -14,7 +14,7 @@ export interface AccessStatusInput {
   suspendedReason: string | null;
   trialEndsAt: Date | null;
   stripeSubscriptionStatus: string | null;
-  plan: { isFreeEternal: boolean } | null;
+  plan: { isFreeEternal: boolean; slug: string } | null;
 }
 
 export function deriveAccessStatus(r: AccessStatusInput, now: Date = new Date()): AccessStatus {
@@ -27,6 +27,11 @@ export function deriveAccessStatus(r: AccessStatusInput, now: Date = new Date())
   }
 
   if (r.stripeSubscriptionStatus === 'active' || r.stripeSubscriptionStatus === 'trialing') {
+    return { status: 'ok' };
+  }
+
+  // Piano pagato assegnato manualmente dal Super Admin (pre-Stripe)
+  if (r.plan && r.plan.slug !== 'free-trial' && !r.plan.isFreeEternal) {
     return { status: 'ok' };
   }
 
@@ -54,7 +59,7 @@ export async function getRestaurantAccessStatus(restaurantId: string): Promise<A
       suspendedReason: true,
       trialEndsAt: true,
       stripeSubscriptionStatus: true,
-      plan: { select: { isFreeEternal: true } },
+      plan: { select: { isFreeEternal: true, slug: true } },
       owner: { select: { emailVerified: true } },
     },
   });

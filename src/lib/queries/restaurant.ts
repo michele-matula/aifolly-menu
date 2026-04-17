@@ -22,7 +22,7 @@ export async function getPublicRestaurant(slug: string) {
         },
       },
       // Serve al caller per calcolare l'access status (trial_expired / suspended → pagina "Non disponibile")
-      plan: { select: { isFreeEternal: true } },
+      plan: { select: { isFreeEternal: true, slug: true } },
     },
   });
 

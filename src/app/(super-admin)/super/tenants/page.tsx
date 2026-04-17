@@ -35,7 +35,7 @@ export default async function SuperTenantsPage() {
       suspendedReason: t.suspendedReason,
       trialEndsAt: t.trialEndsAt,
       stripeSubscriptionStatus: t.stripeSubscriptionStatus,
-      plan: t.plan ? { isFreeEternal: t.plan.isFreeEternal } : null,
+      plan: t.plan ? { isFreeEternal: t.plan.isFreeEternal, slug: t.plan.slug } : null,
     });
     return { ...t, access };
   });
